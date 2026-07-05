@@ -37,10 +37,6 @@ MARKET_PRESETS = {
             "BAJFINANCE.NS", "HINDUNILVR.NS", "MARUTI.NS", "SUNPHARMA.NS", "TATAMOTORS.NS",
         ],
     },
-    "Indian Stocks (BSE)": {
-        "suffix_hint": "e.g. RELIANCE.BO, TCS.BO",
-        "tickers": ["RELIANCE.BO", "TCS.BO", "INFY.BO", "HDFCBANK.BO", "SBIN.BO"],
-    },
     "US Stocks / Index": {
         "suffix_hint": "e.g. AAPL, TSLA, ^GSPC, ^DJI",
         "tickers": [
