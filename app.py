@@ -25,11 +25,11 @@ from telegram_utils import send_telegram_message
 st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 
 MARKET_PRESETS = {
-    "Indian Stocks (NSE)": {"suffix_hint": "e.g. RELIANCE.NS, TCS.NS, INFY.NS", "default": "RELIANCE.NS"},
-    "US Stocks / Index": {"suffix_hint": "e.g. AAPL, TSLA, ^GSPC, ^DJI", "default": "AAPL"},
-    "Forex": {"suffix_hint": "e.g. EURUSD=X, USDINR=X, GBPJPY=X", "default": "EURUSD=X"},
-    "Commodity": {"suffix_hint": "e.g. GC=F (Gold), CL=F (Crude), SI=F (Silver)", "default": "GC=F"},
-    "Crypto": {"suffix_hint": "e.g. BTC-USD, ETH-USD, SOL-USD", "default": "BTC-USD"},
+    "Indian Stocks (NSE)": {"suffix_hint": "e.g. RELIANCE.NS, TCS.NS, INFY.NS"},
+    "US Stocks / Index": {"suffix_hint": "e.g. AAPL, TSLA, ^GSPC, ^DJI"},
+    "Forex": {"suffix_hint": "e.g. EURUSD=X, USDINR=X, GBPJPY=X"},
+    "Commodity": {"suffix_hint": "e.g. GC=F (Gold), CL=F (Crude), SI=F (Silver)"},
+    "Crypto": {"suffix_hint": "e.g. BTC-USD, ETH-USD, SOL-USD"},
 }
 
 INTERVAL_OPTIONS = ["5m", "15m", "30m", "1h", "1d", "1wk"]
