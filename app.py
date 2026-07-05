@@ -26,7 +26,6 @@ st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 
 MARKET_PRESETS = {
     "Indian Stocks (NSE)": {"suffix_hint": "e.g. RELIANCE.NS, TCS.NS, INFY.NS", "default": "RELIANCE.NS"},
-    "Indian Stocks (BSE)": {"suffix_hint": "e.g. RELIANCE.BO, TCS.BO", "default": "RELIANCE.BO"},
     "US Stocks / Index": {"suffix_hint": "e.g. AAPL, TSLA, ^GSPC, ^DJI", "default": "AAPL"},
     "Forex": {"suffix_hint": "e.g. EURUSD=X, USDINR=X, GBPJPY=X", "default": "EURUSD=X"},
     "Commodity": {"suffix_hint": "e.g. GC=F (Gold), CL=F (Crude), SI=F (Silver)", "default": "GC=F"},
