@@ -5,23 +5,11 @@ Ye script Streamlit app se ALAG hai. Isse GitHub Actions par schedule karke
 chalaya jata hai, isliye aapka PC/laptop band ho tab bhi ye chalta rehta hai
 aur naya zone banate hi Telegram par alert bhej deta hai.
 
-Kaise kaam karta hai:
-    1. TICKERS / INTERVALS list (neeche CONFIG me) ke saath scan karta hai.
-    2. pattern_engine.py ka wahi RBD/DBD/DBR/RBR logic use karta hai jo
-       Streamlit app me hai - 100% same rules.
-    3. Har run ke baad already-alerted zones "alerted_state.json" me save
-       kar deta hai, taaki agli baar SAME zone ka dobara alert na aaye.
-    4. Telegram par sirf NAYE events (zone found / entered / SL hit / TP hit)
-       bhejta hai.
-
 Run manually (local test):
     export TELEGRAM_BOT_TOKEN="your_bot_token"
     export TELEGRAM_CHAT_ID="your_chat_id"
     pip install pandas numpy yfinance requests matplotlib
     python alert_bot.py
-
-Production (24x7, PC off): GitHub Actions workflow
-(.github/workflows/scan.yml) ise automatically har N minute me chalata hai.
 """
 
 import os
@@ -49,30 +37,226 @@ INTERVALS = [
     "1d", "1wk"
 ]
 
-TICKERS = [
+# ==========================================================================
+# 🔥 COMPLETE SYMBOL LIST - BSE REMOVED, ONLY BTC-USD IN CRYPTO
+# 🔥 FOREX - ALL MAJOR + MINOR + CROSS (NO EXOTICS)
+# ==========================================================================
+
+# --- INDIAN STOCKS (NSE Only) ---
+NSE_TICKERS = [
+    # Large Cap
     "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
     "SBIN.NS", "ITC.NS", "LT.NS", "AXISBANK.NS", "KOTAKBANK.NS",
+    "BAJFINANCE.NS", "HINDUNILVR.NS", "MARUTI.NS", "SUNPHARMA.NS", "TATAMOTORS.NS",
+    "WIPRO.NS", "HCLTECH.NS", "ASIANPAINT.NS", "ULTRACEMCO.NS", "ADANIPORTS.NS",
+    "NTPC.NS", "ONGC.NS", "POWERGRID.NS", "COALINDIA.NS", "BHARTIARTL.NS",
+    
+    # Mid Cap
+    "TATACONSUM.NS", "PIDILITIND.NS", "DIVISLAB.NS", "DRREDDY.NS", "GRASIM.NS",
+    "JSWSTEEL.NS", "TECHM.NS", "TITAN.NS", "HDFCLIFE.NS", "SBILIFE.NS",
+    "BRITANNIA.NS", "HINDALCO.NS", "EICHERMOT.NS", "BAJAJFINSV.NS", "ADANIGREEN.NS",
+    "ADANIENT.NS", "VEDL.NS", "TATASTEEL.NS", "JINDALSTEL.NS", "M&M.NS",
+    
+    # Banking & Financials
+    "BANKBARODA.NS", "PNB.NS", "CANBK.NS", "UNIONBANK.NS", "INDUSINDBK.NS",
+    "YESBANK.NS", "FEDERALBNK.NS", "IDFCFIRSTB.NS", "RBLBANK.NS", "AUBANK.NS",
+    "SBI.NS", "BANDHANBNK.NS", "IDBI.NS", "UCOBANK.NS", "IOB.NS",
+    
+    # IT & Tech
+    "MPHASIS.NS", "MINDTREE.NS", "COFORGE.NS", "LTI.NS", "LTTS.NS",
+    "PERSISTENT.NS", "HEXAWARE.NS", "NIITTECH.NS", "CIGNITI.NS", "ZENSARTECH.NS",
+    
+    # Pharma & Healthcare
+    "CIPLA.NS", "GLENMARK.NS", "AUROPHARMA.NS", "LUPIN.NS", "TORNTPHARM.NS",
+    "APOLLOHOSP.NS", "FORTIS.NS", "MAXHEALTH.NS", "NARAYANA.NS", "METROPOLIS.NS",
+    
+    # Auto & Auto Ancillary
+    "HEROMOTOCO.NS", "BAJAJ-AUTO.NS", "TVSMOTOR.NS", "ASHOKLEY.NS", "ESCORTS.NS",
+    "BOSCHLTD.NS", "MOTHERSON.NS", "BALKRISIND.NS", "APOLLOTYRE.NS", "MRF.NS",
+    
+    # FMCG
+    "NESTLEIND.NS", "DABUR.NS", "MARICO.NS", "GODREJCP.NS", "EMAMILTD.NS",
+    "HATSUN.NS", "VBL.NS", "RADICO.NS", "UNITEDBREW.NS", "MCDOWELL-N.NS",
+    
+    # Energy & Power
+    "POWERGRID.NS", "TATAPOWER.NS", "ADANIPOWER.NS", "NTPC.NS", "ONGC.NS",
+    "OIL.NS", "GAIL.NS", "PETRONET.NS", "IOC.NS", "BPCL.NS",
+    
+    # Metals & Mining
+    "HINDZINC.NS", "COALINDIA.NS", "NMDC.NS", "SAIL.NS", "JSWSTEEL.NS",
+    
+    # Real Estate & Infra
+    "DLF.NS", "GODREJPROP.NS", "OBEROIRLTY.NS", "PRESTIGE.NS", "SOBHA.NS",
+    "L&TFH.NS", "RECLTD.NS", "PFC.NS", "NHPC.NS", "IRCTC.NS",
+    
+    # Media & Entertainment
+    "SUNTV.NS", "PVRINOX.NS", "ZEE.NS", "NETWORK18.NS", "TV18BRDCST.NS",
+    
+    # Telecom
+    "BHARTIARTL.NS", "TATACOMM.NS", "IDEA.NS", "RELIANCE.NS",
+    
+    # Others
+    "HAL.NS", "BEL.NS", "BHEL.NS", "SIEMENS.NS", "ABB.NS",
+    "SUZLON.NS", "TATACHEM.NS", "UPL.NS", "PIIND.NS", "SRTRANSFIN.NS",
 ]
 
-# 🔥 yfinance interval mapping - unsupported intervals ka fallback
+# --- US STOCKS ---
+US_TICKERS = [
+    # Tech Giants
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
+    "NFLX", "ADBE", "CRM", "ORCL", "IBM", "CSCO", "INTC",
+    "AMD", "QCOM", "TXN", "AVGO", "MU", "ARM",
+    
+    # Banking & Finance
+    "JPM", "BAC", "WFC", "C", "GS", "MS", "V", "MA", "PYPL",
+    "SQ", "COIN", "BLK", "AXP", "USB", "PNC", "TFC",
+    
+    # Healthcare
+    "JNJ", "PFE", "MRK", "UNH", "CVS", "ABBV", "LLY",
+    "GILD", "BIIB", "AMGN", "VRTX", "REGN", "MRNA",
+    
+    # Consumer
+    "PG", "KO", "PEP", "WMT", "COST", "HD", "MCD", "SBUX",
+    "NKE", "DIS", "UPS", "FDX", "TGT", "LOW", "KHC",
+    
+    # Energy
+    "XOM", "CVX", "COP", "SLB", "EOG", "OXY", "PSX", "VLO",
+    
+    # Industrial
+    "GE", "CAT", "BA", "RTX", "LMT", "HON", "UNP", "DHR",
+    
+    # Communication
+    "T", "VZ", "TMUS", "CMCSA", "CHTR", "DISH",
+    
+    # Real Estate
+    "AMT", "PLD", "CCI", "EQIX", "SPG", "PSA", "DLR",
+    
+    # Crypto related
+    "COIN", "MSTR", "RIOT", "MARA", "CLSK",
+    
+    # Indexes
+    "^GSPC", "^DJI", "^IXIC", "^RUT", "^VIX",
+]
+
+# ==========================================================================
+# 🔥 FOREX - COMPLETE MAJOR + MINOR + CROSS PAIRS (NO EXOTICS)
+# ==========================================================================
+
+# --- MAJOR PAIRS (7 pairs) ---
+MAJOR_PAIRS = [
+    "EURUSD=X",   # Euro / US Dollar
+    "GBPUSD=X",   # British Pound / US Dollar
+    "USDJPY=X",   # US Dollar / Japanese Yen
+    "AUDUSD=X",   # Australian Dollar / US Dollar
+    "USDCAD=X",   # US Dollar / Canadian Dollar
+    "USDCHF=X",   # US Dollar / Swiss Franc
+    "NZDUSD=X",   # New Zealand Dollar / US Dollar
+]
+
+# --- MINOR PAIRS (Cross pairs without USD) ---
+MINOR_PAIRS = [
+    # Euro crosses
+    "EURGBP=X",   # Euro / British Pound
+    "EURJPY=X",   # Euro / Japanese Yen
+    "EURCHF=X",   # Euro / Swiss Franc
+    "EURCAD=X",   # Euro / Canadian Dollar
+    "EURAUD=X",   # Euro / Australian Dollar
+    "EURNZD=X",   # Euro / New Zealand Dollar
+    
+    # Pound crosses
+    "GBPJPY=X",   # British Pound / Japanese Yen
+    "GBPCHF=X",   # British Pound / Swiss Franc
+    "GBPCAD=X",   # British Pound / Canadian Dollar
+    "GBPAUD=X",   # British Pound / Australian Dollar
+    "GBPNZD=X",   # British Pound / New Zealand Dollar
+    
+    # Yen crosses
+    "AUDJPY=X",   # Australian Dollar / Japanese Yen
+    "CADJPY=X",   # Canadian Dollar / Japanese Yen
+    "CHFJPY=X",   # Swiss Franc / Japanese Yen
+    "NZDJPY=X",   # New Zealand Dollar / Japanese Yen
+    
+    # Other crosses
+    "AUDCAD=X",   # Australian Dollar / Canadian Dollar
+    "AUDCHF=X",   # Australian Dollar / Swiss Franc
+    "AUDNZD=X",   # Australian Dollar / New Zealand Dollar
+    "CADCHF=X",   # Canadian Dollar / Swiss Franc
+    "NZDCAD=X",   # New Zealand Dollar / Canadian Dollar
+    "NZDCHF=X",   # New Zealand Dollar / Swiss Franc
+]
+
+# --- INDIAN RUPEE PAIRS (Added in Cross category) ---
+INR_PAIRS = [
+    "USDINR=X",   # US Dollar / Indian Rupee
+    "EURINR=X",   # Euro / Indian Rupee
+    "GBPINR=X",   # British Pound / Indian Rupee
+    "JPYINR=X",   # Japanese Yen / Indian Rupee
+]
+
+# --- COMBINE ALL FOREX (NO EXOTICS) ---
+FOREX_TICKERS = MAJOR_PAIRS + MINOR_PAIRS + INR_PAIRS
+
+# --- COMMODITIES ---
+COMMODITY_TICKERS = [
+    # Metals
+    "GC=F",  # Gold
+    "SI=F",  # Silver
+    "HG=F",  # Copper
+    "PL=F",  # Platinum
+    "PA=F",  # Palladium
+    
+    # Energy
+    "CL=F",  # Crude Oil WTI
+    "BZ=F",  # Brent Crude
+    "NG=F",  # Natural Gas
+    "RB=F",  # Gasoline
+    "HO=F",  # Heating Oil
+    
+    # Agriculture
+    "ZC=F",  # Corn
+    "ZS=F",  # Soybean
+    "ZW=F",  # Wheat
+    "ZM=F",  # Soybean Meal
+    "ZL=F",  # Soybean Oil
+    "CT=F",  # Cotton
+    "SB=F",  # Sugar
+    "KC=F",  # Coffee
+    "CC=F",  # Cocoa
+    
+    # Others
+    "LE=F",  # Live Cattle
+    "HE=F",  # Lean Hogs
+    "GF=F",  # Feeder Cattle
+]
+
+# --- CRYPTO (ONLY BTC-USD) ---
+CRYPTO_TICKERS = [
+    "BTC-USD",  # Only Bitcoin
+]
+
+# ==========================================================================
+# 🔥 COMBINE ALL SYMBOLS
+# ==========================================================================
+
+TICKERS = (
+    NSE_TICKERS + 
+    US_TICKERS + 
+    FOREX_TICKERS + 
+    COMMODITY_TICKERS + 
+    CRYPTO_TICKERS
+)
+
+# ==========================================================================
+
+# 🔥 yfinance interval mapping
 YF_INTERVAL_MAP = {
-    # Supported by yfinance
     "1m": "1m", "2m": "2m", "5m": "5m", "15m": "15m", 
     "30m": "30m", "60m": "60m", "90m": "90m",
     "1h": "60m", "4h": "60m",
     "1d": "1d", "5d": "5d", "1wk": "1wk", "1mo": "1mo", "3mo": "3mo",
-    
-    # 🔥 UNSUPPORTED -> NEAREST SUPPORTED FALLBACK
-    "45m": "30m",      # 45 min -> 30 min
-    "75m": "60m",      # 75 min -> 1 hour
-    "125m": "60m",     # 125 min -> 1 hour
-    "2h": "60m",       # 2 hours -> 1 hour
-    "5h": "60m",       # 5 hours -> 1 hour
-    "6h": "60m",       # 6 hours -> 1 hour
-    "8h": "60m",       # 8 hours -> 1 hour
-    "10h": "60m",      # 10 hours -> 1 hour
-    "12h": "1d",       # 12 hours -> 1 day
-    "16h": "1d",       # 16 hours -> 1 day
+    "45m": "30m", "75m": "60m", "125m": "60m",
+    "2h": "60m", "5h": "60m", "6h": "60m", "8h": "60m", "10h": "60m",
+    "12h": "1d", "16h": "1d",
 }
 
 PERIOD = "1mo"
@@ -82,7 +266,7 @@ RR_TARGET = 3.0
 PRE_ENTRY_MULT = 1.5
 BASE_COUNT_FILTER = "All"
 
-# 🔥 FIX: False = ALL zones ke alerts, True = sirf latest bar
+# 🔥 Set to False for ALL zones alerts
 ONLY_LATEST_BAR = False
 
 STATE_FILE = "alerted_state.json"
@@ -188,6 +372,8 @@ def send_alert_with_retry(bot_token: str, chat_id: str, text: str, chart_bytes: 
 def main():
     logger.info("=" * 60)
     logger.info(f"🚀 ZONE SCANNER STARTED at {dt.datetime.now()}")
+    logger.info(f"📊 Total Symbols: {len(TICKERS)}")
+    logger.info(f"📊 Total Timeframes: {len(INTERVALS)}")
     logger.info("=" * 60)
     
     if not BOT_TOKEN or not CHAT_ID:
@@ -261,7 +447,7 @@ def main():
     
     logger.info("\n" + "=" * 60)
     logger.info("📊 SCAN COMPLETE")
-    logger.info(f"  • Total tickers: {len(TICKERS)}")
+    logger.info(f"  • Total symbols: {len(TICKERS)}")
     logger.info(f"  • Total timeframes: {len(INTERVALS)}")
     logger.info(f"  • Total zones found: {total_zones}")
     logger.info(f"  • Total events: {total_events}")
