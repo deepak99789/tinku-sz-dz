@@ -34,5 +34,10 @@ jobs:
           git config user.name "zone-scanner-bot"
           git config user.email "actions@github.com"
           git add alerted_state.json
-          git diff --cached --quiet || git commit -m "Update alert state [skip ci]"
-          git push
+          if git diff --cached --quiet; then
+            echo "No state changes to commit"
+          else
+            git commit -m "Update alert state [skip ci]"
+            git push
+            echo "State updated and pushed"
+          fi
