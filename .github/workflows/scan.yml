@@ -1,11 +1,13 @@
 name: Zone Scanner (Telegram Alerts)
 
-# Ye workflow GitHub ke apne server par chalta hai - aapka PC/laptop
+# Ye workflow GitHub ke apne server par chalega - aapka PC/laptop
 # band ho tab bhi ye har schedule par khud scan karke Telegram alert bhejega.
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # har 15 minute me chalega (UTC time base par)
+    - cron: "*/5 * * * *"   # 🔥 UPDATED: har 5 minute me chalega (15 se kam kiya)
+    # - cron: "*/10 * * * *"  # ya 10 minute
+    # - cron: "*/15 * * * *"  # ya 15 minute (default)
   workflow_dispatch: {}        # "Actions" tab se manually bhi chala sakte ho
 
 permissions:
