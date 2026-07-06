@@ -1,16 +1,5 @@
 """
-app.py - Demand & Supply Dashboard (Streamlit port of the Pine Script indicator)
-
-Works across:
-    - Indian stocks (NSE/BSE)   e.g. RELIANCE.NS, TCS.BO
-    - US stocks / indices       e.g. AAPL, TSLA, ^GSPC
-    - Forex                    e.g. EURUSD=X, USDINR=X
-    - Commodities               e.g. GC=F (Gold), CL=F (Crude), SI=F (Silver)
-    - Crypto                    e.g. BTC-USD, ETH-USD
-
-Run locally:
-    pip install -r requirements.txt
-    streamlit run app.py
+app.py - Demand & Supply Dashboard (Streamlit port)
 """
 
 import streamlit as st
@@ -38,8 +27,7 @@ from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_I
 st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 
 # --------------------------------------------------------------------------
-# Presets - starter ticker lists per market. Add jitne chaho, yahin list
-# me daal dena (baad me neeche "Extra tickers" box se bhi add kar sakte ho).
+# PRESETS
 # --------------------------------------------------------------------------
 MARKET_PRESETS = {
     "Indian Stocks (NSE)": {
@@ -56,26 +44,23 @@ MARKET_PRESETS = {
     },
     "US Stocks / Index": {
         "suffix_hint": "e.g. AAPL, TSLA, ^GSPC, ^DJI",
-        "tickers": [
-            "AAPL", "TSLA", "MSFT", "GOOGL", "AMZN", "NVDA", "META",
-            "^GSPC", "^DJI", "^IXIC",
-        ],
+        "tickers": ["AAPL", "TSLA", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "^GSPC", "^DJI", "^IXIC"],
     },
     "Forex": {
-        "suffix_hint": "e.g. EURUSD=X, USDINR=X, GBPJPY=X",
+        "suffix_hint": "e.g. EURUSD=X, USDINR=X",
         "tickers": ["EURUSD=X", "USDINR=X", "GBPJPY=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X"],
     },
     "Commodity": {
-        "suffix_hint": "e.g. GC=F (Gold), CL=F (Crude), SI=F (Silver)",
+        "suffix_hint": "e.g. GC=F (Gold), CL=F (Crude)",
         "tickers": ["GC=F", "CL=F", "SI=F", "NG=F", "HG=F"],
     },
     "Crypto": {
-        "suffix_hint": "e.g. BTC-USD, ETH-USD, SOL-USD",
+        "suffix_hint": "e.g. BTC-USD, ETH-USD",
         "tickers": ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD"],
     },
 }
 
-# 🔥 UPDATED: ALL TIMEFRAMES
+# 🔥 ALL TIMEFRAMES
 INTERVAL_OPTIONS = [
     "5m", "15m", "30m", "45m", "60m", "75m", "125m",
     "2h", "4h", "5h", "6h", "8h", "10h", "12h", "16h",
@@ -83,10 +68,14 @@ INTERVAL_OPTIONS = [
 ]
 
 PERIOD_OPTIONS = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
-PERIOD_BY_INTERVAL = {
-    "5m": "1mo", "15m": "1mo", "30m": "1mo", "45m": "1mo", "60m": "1mo", "75m": "1mo", "125m": "1mo",
-    "2h": "1mo", "4h": "1mo", "5h": "1mo", "6h": "1mo", "8h": "1mo", "10h": "1mo", "12h": "1mo", "16h": "1mo",
-    "1d": "5y", "1wk": "10y",
+
+# 🔥 yfinance interval mapping
+YF_INTERVAL_MAP_APP = {
+    "5m": "5m", "15m": "15m", "30m": "30m", "45m": "30m",
+    "60m": "60m", "75m": "60m", "125m": "60m",
+    "2h": "60m", "4h": "60m", "5h": "60m", "6h": "60m",
+    "8h": "60m", "10h": "60m", "12h": "1d", "16h": "1d",
+    "1d": "1d", "1wk": "1wk"
 }
 
 STATUS_LABELS = {
@@ -96,16 +85,15 @@ STATUS_LABELS = {
 }
 
 st.title("📊 Demand & Supply Dashboard")
-st.caption("Python/Streamlit port of the Pine Script RBD / DBD / DBR / RBR zone-detection indicator")
+st.caption("Python/Streamlit port with ALL timeframes (5m to Weekly)")
 
 # ==========================================================================
-# ⚙️ SETTINGS - centered in the main page (no sidebar)
+# SETTINGS
 # ==========================================================================
 st.markdown("## ⚙️ Settings")
 settings_box = st.container(border=True)
 
 with settings_box:
-    # ---- Row 1: Market / Ticker / Zone Status Filter / Timeframe ----
     row1_c1, row1_c2, row1_c3, row1_c4 = st.columns([1.2, 1.6, 1.4, 1])
     with row1_c1:
         market = st.selectbox("Market Type", list(MARKET_PRESETS.keys()))
@@ -117,14 +105,12 @@ with settings_box:
             options=preset["tickers"],
             default=preset["tickers"] if select_all_tickers else preset["tickers"][:1],
             disabled=select_all_tickers,
-            help=preset["suffix_hint"],
         )
     with row1_c3:
         status_choice = st.multiselect(
             "🎯 Zone Status Filter",
             options=["All", "Fresh Zone", "SL Zone", "Target Zone"],
             default=["All"],
-            help="Fresh = abhi tak SL/Target nahi laga. SL Zone = stoploss hit. Target Zone = target hit.",
         )
     with row1_c4:
         select_all_intervals = st.checkbox("✅ Select ALL timeframes", value=False)
@@ -143,15 +129,9 @@ with settings_box:
 
     st.divider()
 
-    # ---- Row 2: Period / Pattern rules / Base filter ----
     row2_c1, row2_c2, row2_c3, row2_c4, row2_c5, row2_c6 = st.columns([1, 1, 1, 1, 1, 1.4])
     with row2_c1:
-        period = st.selectbox(
-            "History Period",
-            PERIOD_OPTIONS,
-            index=PERIOD_OPTIONS.index("1y") if "1y" in PERIOD_OPTIONS else 0,
-            help="Intraday (5m/15m/30m) me Yahoo Finance khud history limit karta hai (~60 din).",
-        )
+        period = st.selectbox("History Period", PERIOD_OPTIONS, index=4)
     with row2_c2:
         atr_length = st.number_input("ATR Length", min_value=1, value=14)
     with row2_c3:
@@ -165,7 +145,6 @@ with settings_box:
 
     st.divider()
 
-    # ---- Row 3: Telegram alerts ----
     row3_c1, row3_c2, row3_c3, row3_c4 = st.columns([1, 1.3, 1.3, 1])
     with row3_c1:
         telegram_on = st.checkbox("📨 Enable Telegram alerts", value=False)
@@ -174,39 +153,31 @@ with settings_box:
     with row3_c3:
         chat_id = st.text_input("Chat ID") if telegram_on else ""
     with row3_c4:
-        only_latest = st.checkbox("Only latest bar", value=True) if telegram_on else True
+        only_latest = st.checkbox("Only latest bar", value=False) if telegram_on else False
 
     st.divider()
 
-    # ---- Row 4: Auto-Scan + In-app alerts ----
     st.markdown("**🔔 Alert System**")
     row4_c1, row4_c2, row4_c3, row4_c4 = st.columns([1.3, 1, 1, 1])
     with row4_c1:
-        auto_scan_on = st.checkbox("♻️ Auto-Scan (khud-b-khud refresh)", value=False)
+        auto_scan_on = st.checkbox("♻️ Auto-Scan", value=False)
     with row4_c2:
-        autoscan_interval = st.number_input(
-            "Interval (sec)", min_value=15, value=60, step=5, disabled=not auto_scan_on
-        )
+        autoscan_interval = st.number_input("Interval (sec)", min_value=15, value=60, step=5, disabled=not auto_scan_on)
     with row4_c3:
-        sound_on = st.checkbox("🔊 Sound on new alert", value=True)
+        sound_on = st.checkbox("🔊 Sound", value=True)
     with row4_c4:
-        toast_on = st.checkbox("📳 In-app popup (toast)", value=True)
+        toast_on = st.checkbox("📳 Toast", value=True)
 
     if auto_scan_on and not AUTOREFRESH_AVAILABLE:
-        st.warning(
-            "⚠️ Auto-Scan ke liye `streamlit-autorefresh` package chahiye. "
-            "requirements.txt me `streamlit-autorefresh` add karke app ko re-deploy karein."
-        )
+        st.warning("⚠️ `streamlit-autorefresh` package required for auto-scan.")
 
     run_btn = st.button("🔄 Fetch & Scan", type="primary", use_container_width=True)
 
-# Auto-refresh timer (fires a rerun every N seconds when Auto-Scan is ON)
 if auto_scan_on and AUTOREFRESH_AVAILABLE:
     st_autorefresh(interval=int(autoscan_interval * 1000), key="autoscan_timer")
 
 
 def resolve_status_filter(choice_list):
-    """'All' ya empty selection => sab statuses allow karo."""
     if not choice_list or "All" in choice_list:
         return set(STATUS_LABELS.values())
     return {STATUS_LABELS[c] for c in choice_list if c in STATUS_LABELS}
@@ -214,8 +185,6 @@ def resolve_status_filter(choice_list):
 
 @st.cache_data(show_spinner=False)
 def get_beep_b64(freq: int = 880, duration: float = 0.3, volume: float = 0.5, rate: int = 44100) -> str:
-    """Ek chhota beep tone generate karta hai (WAV, base64) - koi external
-    audio file ki zaroorat nahi, in-app alert sound ke liye use hota hai."""
     n_samples = int(rate * duration)
     buf = io.BytesIO()
     wf = wave.open(buf, "wb")
@@ -245,8 +214,9 @@ def play_beep():
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
+    yf_itv = YF_INTERVAL_MAP_APP.get(itv, itv)
     try:
-        df = yf.download(tkr, interval=itv, period=per, progress=False, auto_adjust=False)
+        df = yf.download(tkr, interval=yf_itv, period=per, progress=False, auto_adjust=False)
     except Exception:
         return pd.DataFrame()
     if df.empty:
@@ -258,16 +228,6 @@ def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
 
 
 def fetch_data_smart(tkr: str, itv: str, requested_period: str):
-    """
-    Intraday intervals (5m/15m/30m/1h) me Yahoo Finance khud limited history
-    deta hai (e.g. ~1 mahina). Agar requested period us interval ke liye
-    zyada bada hai to Yahoo khaali data deta hai / error deta hai.
-
-    Ye function requested period se shuru karke chhote periods ki taraf
-    step-down karta hai jab tak data mil na jaaye - isse "All timeframes"
-    select karne par bhi koi bhi combo error nahi dega, jitna data mil
-    sakta hai utna dikha dega.
-    """
     start_idx = PERIOD_OPTIONS.index(requested_period)
     candidates = [PERIOD_OPTIONS[i] for i in range(start_idx, -1, -1)]
     for cand in candidates:
@@ -280,18 +240,18 @@ def fetch_data_smart(tkr: str, itv: str, requested_period: str):
 # ==========================================================================
 # RUN SCAN
 # ==========================================================================
-st.session_state.setdefault("seen_alert_keys", set())      # in-app log/toast/sound dedup
-st.session_state.setdefault("telegram_sent_keys", set())   # Telegram-specific dedup (independent!)
+st.session_state.setdefault("seen_alert_keys", set())
+st.session_state.setdefault("telegram_sent_keys", set())
 st.session_state.setdefault("alert_log", [])
 
 trigger_scan = run_btn or auto_scan_on
 
 if trigger_scan:
     if not final_tickers:
-        st.error("Kam se kam ek ticker select karein (ya 'Select ALL tickers' on karein).")
+        st.error("Kam se kam ek ticker select karein.")
         st.stop()
     if not final_intervals:
-        st.error("Kam se kam ek timeframe select karein (ya 'Select ALL timeframes' on karein).")
+        st.error("Kam se kam ek timeframe select karein.")
         st.stop()
 
     combo_results = {}
@@ -324,16 +284,13 @@ if trigger_scan:
     progress.empty()
 
     if not combo_results:
-        st.error("Kisi bhi ticker/interval combination me data nahi mila. Symbol check karein.")
+        st.error("Kisi bhi ticker/interval combination me data nahi mila.")
         st.stop()
 
     if downgraded:
-        st.info(
-            "ℹ️ Ye combos ke liye intraday data limit ki wajah se chhota period use hua "
-            "(available jitna data tha utna le liya gaya):\n\n" + "\n".join(f"- {x}" for x in downgraded)
-        )
+        st.info("ℹ️ In combos ke liye chhota period use hua:\n\n" + "\n".join(f"- {x}" for x in downgraded[:10]))
     if skipped:
-        st.warning("⚠️ Inme bilkul data nahi mila, skip kar diya:\n\n" + "\n".join(f"- {x}" for x in skipped))
+        st.warning("⚠️ Inme data nahi mila:\n\n" + "\n".join(f"- {x}" for x in skipped[:10]))
 
     st.session_state["combo_results"] = combo_results
     st.session_state["last_tickers"] = final_tickers
@@ -341,7 +298,6 @@ if trigger_scan:
     st.session_state["rr_target"] = rr_target
     st.session_state["last_scan_time"] = dt.datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
-    # ---- Collect ALL current alert-worthy events across all combos ----
     collected = []
     for (tkr, itv), data in combo_results.items():
         result = data["result"]
@@ -358,7 +314,6 @@ if trigger_scan:
                 "event": e, "df": df, "text": txt,
             })
 
-    # ---- In-app (log / toast / sound) - dedup independent of Telegram ----
     new_for_app = [c for c in collected if c["key"] not in st.session_state["seen_alert_keys"]]
     for c in new_for_app:
         st.session_state["seen_alert_keys"].add(c["key"])
@@ -373,7 +328,7 @@ if trigger_scan:
         st.session_state["alert_log"] = (log_entries[::-1] + st.session_state["alert_log"])[:100]
 
         if toast_on:
-            for c in new_for_app[:5]:  # avoid flooding if a big batch fires at once
+            for c in new_for_app[:5]:
                 st.toast(
                     f"{ALERT_ICONS.get(c['type'], '🔔')} {c['ticker']} [{c['interval']}] — {c['type'].replace('_', ' ').title()}",
                     icon=ALERT_ICONS.get(c["type"], "🔔"),
@@ -381,13 +336,11 @@ if trigger_scan:
         if sound_on:
             play_beep()
 
-    # ---- Telegram - dedup INDEPENDENT of in-app log, so enabling Telegram
-    # later still delivers alerts that were already shown in-app before ----
     if telegram_on:
         to_send = [c for c in collected if c["key"] not in st.session_state["telegram_sent_keys"]]
         if not bot_token or not chat_id:
             if to_send:
-                st.warning("📨 Telegram ON hai lekin Bot Token / Chat ID khaali hai — alert nahi bheja ja saka.")
+                st.warning("📨 Bot Token / Chat ID missing.")
         for c in to_send:
             chart_bytes = render_zone_chart(c["df"], c["event"], c["ticker"], c["interval"])
             if chart_bytes:
@@ -400,19 +353,17 @@ if trigger_scan:
 
 
 # ==========================================================================
-# DISPLAY RESULTS
+# DISPLAY
 # ==========================================================================
 if "combo_results" in st.session_state:
     combo_results = st.session_state["combo_results"]
-    rr_target_display = st.session_state.get("rr_target", 3.0)
     allowed_status = resolve_status_filter(status_choice)
 
     status_line = f"🕒 Last scan: {st.session_state.get('last_scan_time', '-')}"
     if auto_scan_on:
-        status_line += f"  |  ♻️ Auto-Scan ON (har {int(autoscan_interval)}s me refresh hoga)"
+        status_line += f"  |  ♻️ Auto-Scan ON (har {int(autoscan_interval)}s)"
     st.caption(status_line)
 
-    # --- Live Alerts panel ---
     with st.expander(f"🔔 Live Alerts ({len(st.session_state['alert_log'])})", expanded=bool(st.session_state["alert_log"])):
         if st.session_state["alert_log"]:
             if st.button("🗑️ Clear alerts"):
@@ -425,11 +376,8 @@ if "combo_results" in st.session_state:
             st.caption("Abhi tak koi alert nahi aaya.")
 
     combo_keys = list(combo_results.keys())
-    combo_labels = [
-        f"{t} [{i} · {combo_results[(t, i)]['period_used']}]" for t, i in combo_keys
-    ]
+    combo_labels = [f"{t} [{i} · {combo_results[(t, i)]['period_used']}]" for t, i in combo_keys]
 
-    # --- Overall summary across ALL selected tickers & timeframes ---
     total_zones_all = 0
     total_fresh_all = 0
     total_sl_all = 0
@@ -445,10 +393,10 @@ if "combo_results" in st.session_state:
                 total_tp_all += 1
 
     st.divider()
-    st.markdown("### 📋 Final Summary — sab tickers & timeframes")
+    st.markdown("### 📋 Final Summary")
     s1, s2, s3, s4 = st.columns(4)
-    s1.metric("Total Zones Detected", total_zones_all)
-    s2.metric("🟡 Fresh Zones", total_fresh_all)
+    s1.metric("Total Zones", total_zones_all)
+    s2.metric("🟡 Fresh", total_fresh_all)
     s3.metric("🔴 SL Hit", total_sl_all)
     s4.metric("🟢 Target Hit", total_tp_all)
 
@@ -459,11 +407,9 @@ if "combo_results" in st.session_state:
         chosen_key = combo_keys[combo_labels.index(chosen_label)]
         df = combo_results[chosen_key]["df"]
         result = combo_results[chosen_key]["result"]
-        ticker = chosen_key[0]
 
         zones_filtered = [z for z in result.all_zones if z.status in allowed_status]
 
-        # --- Stats row (for the currently charted ticker/timeframe only) ---
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("SL Hits", result.sl_count)
         c2.metric("TP Hits", result.tp_count)
@@ -472,12 +418,11 @@ if "combo_results" in st.session_state:
         c3.metric("Win Rate", f"{winrate:.1f}%")
         c4.metric("Zones Shown", f"{len(zones_filtered)} / {len(result.all_zones)}")
 
-        # --- Chart ---
         fig = go.Figure()
         fig.add_trace(
             go.Candlestick(
                 x=df.index, open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"],
-                name=ticker, increasing_line_color="#26a69a", decreasing_line_color="#ef5350",
+                name=chosen_key[0], increasing_line_color="#26a69a", decreasing_line_color="#ef5350",
             )
         )
 
@@ -509,14 +454,9 @@ if "combo_results" in st.session_state:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        # --- Combined Zone Log (across ALL selected tickers/intervals) ---
-        st.subheader("Zone Log (all selected tickers & timeframes)")
+        st.subheader("Zone Log (all selected)")
 
         def normalize_ts(ts):
-            """Alag markets ke timestamps alag timezones me hote hain
-            (NSE=IST, US=EST, Crypto=UTC waghera). Ek column me sort karne
-            se pehle sabko naive (tz-less) UTC me convert kar dete hain,
-            warna pandas mixed-tz Timestamps compare nahi kar pata."""
             ts = pd.Timestamp(ts)
             if ts.tzinfo is not None:
                 ts = ts.tz_convert("UTC").tz_localize(None)
@@ -544,17 +484,13 @@ if "combo_results" in st.session_state:
                 })
         if rows:
             zone_df = pd.DataFrame(rows)
-            # Extra safety net: force the whole column into ONE uniform
-            # datetime dtype. Even within the same market, yfinance returns
-            # intraday candles as tz-aware and daily/weekly as tz-naive -
-            # mixing these in one column breaks sort_values otherwise.
             zone_df["Start"] = pd.to_datetime(zone_df["Start"], errors="coerce")
             st.dataframe(
                 zone_df.sort_values("Start", ascending=False),
                 use_container_width=True, hide_index=True,
             )
         else:
-            st.info("Selected filter/timeframe/ticker combination me koi zone nahi mila.")
+            st.info("Koi zone nahi mila.")
 
 else:
     st.info("Upar settings choose karke **🔄 Fetch & Scan** dabayein.")
