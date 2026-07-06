@@ -2,11 +2,11 @@
 app.py - Demand & Supply Dashboard (Streamlit port of the Pine Script indicator)
 
 Works across:
-    - Indian stocks (NSE/BSE)   e.g. RELIANCE.NS, TCS.BO
-    - US stocks / indices       e.g. AAPL, TSLA, ^GSPC
-    - Forex                    e.g. EURUSD=X, USDINR=X
-    - Commodities               e.g. GC=F (Gold), CL=F (Crude), SI=F (Silver)
-    - Crypto                    e.g. BTC-USD, ETH-USD
+    - Indian stocks (NSE)   e.g. RELIANCE.NS, TCS.NS
+    - US stocks / indices   e.g. AAPL, TSLA, ^GSPC
+    - Forex                 e.g. EURUSD=X, USDINR=X
+    - Commodities           e.g. GC=F (Gold), CL=F (Crude)
+    - Crypto                e.g. BTC-USD
 
 Run locally:
     pip install -r requirements.txt
@@ -238,6 +238,7 @@ with settings_box:
     with row3_c3:
         chat_id = st.text_input("Chat ID") if telegram_on else ""
     with row3_c4:
+        # 🔥 DEFAULT: True - Sirf latest bar ke alerts
         only_latest = st.checkbox("Only latest bar", value=True) if telegram_on else True
 
     st.divider()
