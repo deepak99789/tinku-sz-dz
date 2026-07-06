@@ -38,201 +38,95 @@ INTERVALS = [
 ]
 
 # ==========================================================================
-# 🔥 COMPLETE SYMBOL LIST - BSE REMOVED, ONLY BTC-USD IN CRYPTO
-# 🔥 FOREX - ALL MAJOR + MINOR + CROSS (NO EXOTICS)
+# 🔥 SYMBOL LISTS - NSE + US + FOREX (Major+Minor+Cross) + COMMODITIES + BTC
+# 🔥 BSE REMOVED, ONLY BTC-USD IN CRYPTO
 # ==========================================================================
 
 # --- INDIAN STOCKS (NSE Only) ---
 NSE_TICKERS = [
-    # Large Cap
     "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
     "SBIN.NS", "ITC.NS", "LT.NS", "AXISBANK.NS", "KOTAKBANK.NS",
     "BAJFINANCE.NS", "HINDUNILVR.NS", "MARUTI.NS", "SUNPHARMA.NS", "TATAMOTORS.NS",
     "WIPRO.NS", "HCLTECH.NS", "ASIANPAINT.NS", "ULTRACEMCO.NS", "ADANIPORTS.NS",
     "NTPC.NS", "ONGC.NS", "POWERGRID.NS", "COALINDIA.NS", "BHARTIARTL.NS",
-    
-    # Mid Cap
     "TATACONSUM.NS", "PIDILITIND.NS", "DIVISLAB.NS", "DRREDDY.NS", "GRASIM.NS",
     "JSWSTEEL.NS", "TECHM.NS", "TITAN.NS", "HDFCLIFE.NS", "SBILIFE.NS",
     "BRITANNIA.NS", "HINDALCO.NS", "EICHERMOT.NS", "BAJAJFINSV.NS", "ADANIGREEN.NS",
     "ADANIENT.NS", "VEDL.NS", "TATASTEEL.NS", "JINDALSTEL.NS", "M&M.NS",
-    
-    # Banking & Financials
     "BANKBARODA.NS", "PNB.NS", "CANBK.NS", "UNIONBANK.NS", "INDUSINDBK.NS",
     "YESBANK.NS", "FEDERALBNK.NS", "IDFCFIRSTB.NS", "RBLBANK.NS", "AUBANK.NS",
-    "SBI.NS", "BANDHANBNK.NS", "IDBI.NS", "UCOBANK.NS", "IOB.NS",
-    
-    # IT & Tech
     "MPHASIS.NS", "MINDTREE.NS", "COFORGE.NS", "LTI.NS", "LTTS.NS",
     "PERSISTENT.NS", "HEXAWARE.NS", "NIITTECH.NS", "CIGNITI.NS", "ZENSARTECH.NS",
-    
-    # Pharma & Healthcare
     "CIPLA.NS", "GLENMARK.NS", "AUROPHARMA.NS", "LUPIN.NS", "TORNTPHARM.NS",
     "APOLLOHOSP.NS", "FORTIS.NS", "MAXHEALTH.NS", "NARAYANA.NS", "METROPOLIS.NS",
-    
-    # Auto & Auto Ancillary
     "HEROMOTOCO.NS", "BAJAJ-AUTO.NS", "TVSMOTOR.NS", "ASHOKLEY.NS", "ESCORTS.NS",
     "BOSCHLTD.NS", "MOTHERSON.NS", "BALKRISIND.NS", "APOLLOTYRE.NS", "MRF.NS",
-    
-    # FMCG
     "NESTLEIND.NS", "DABUR.NS", "MARICO.NS", "GODREJCP.NS", "EMAMILTD.NS",
-    "HATSUN.NS", "VBL.NS", "RADICO.NS", "UNITEDBREW.NS", "MCDOWELL-N.NS",
-    
-    # Energy & Power
-    "POWERGRID.NS", "TATAPOWER.NS", "ADANIPOWER.NS", "NTPC.NS", "ONGC.NS",
-    "OIL.NS", "GAIL.NS", "PETRONET.NS", "IOC.NS", "BPCL.NS",
-    
-    # Metals & Mining
-    "HINDZINC.NS", "COALINDIA.NS", "NMDC.NS", "SAIL.NS", "JSWSTEEL.NS",
-    
-    # Real Estate & Infra
+    "TATAPOWER.NS", "ADANIPOWER.NS", "GAIL.NS", "PETRONET.NS", "IOC.NS", "BPCL.NS",
+    "HINDZINC.NS", "NMDC.NS", "SAIL.NS",
     "DLF.NS", "GODREJPROP.NS", "OBEROIRLTY.NS", "PRESTIGE.NS", "SOBHA.NS",
     "L&TFH.NS", "RECLTD.NS", "PFC.NS", "NHPC.NS", "IRCTC.NS",
-    
-    # Media & Entertainment
     "SUNTV.NS", "PVRINOX.NS", "ZEE.NS", "NETWORK18.NS", "TV18BRDCST.NS",
-    
-    # Telecom
-    "BHARTIARTL.NS", "TATACOMM.NS", "IDEA.NS", "RELIANCE.NS",
-    
-    # Others
+    "BHARTIARTL.NS", "TATACOMM.NS", "IDEA.NS",
     "HAL.NS", "BEL.NS", "BHEL.NS", "SIEMENS.NS", "ABB.NS",
     "SUZLON.NS", "TATACHEM.NS", "UPL.NS", "PIIND.NS", "SRTRANSFIN.NS",
 ]
 
 # --- US STOCKS ---
 US_TICKERS = [
-    # Tech Giants
     "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
     "NFLX", "ADBE", "CRM", "ORCL", "IBM", "CSCO", "INTC",
-    "AMD", "QCOM", "TXN", "AVGO", "MU", "ARM",
-    
-    # Banking & Finance
+    "AMD", "QCOM", "TXN", "AVGO", "MU",
     "JPM", "BAC", "WFC", "C", "GS", "MS", "V", "MA", "PYPL",
     "SQ", "COIN", "BLK", "AXP", "USB", "PNC", "TFC",
-    
-    # Healthcare
     "JNJ", "PFE", "MRK", "UNH", "CVS", "ABBV", "LLY",
     "GILD", "BIIB", "AMGN", "VRTX", "REGN", "MRNA",
-    
-    # Consumer
     "PG", "KO", "PEP", "WMT", "COST", "HD", "MCD", "SBUX",
     "NKE", "DIS", "UPS", "FDX", "TGT", "LOW", "KHC",
-    
-    # Energy
     "XOM", "CVX", "COP", "SLB", "EOG", "OXY", "PSX", "VLO",
-    
-    # Industrial
     "GE", "CAT", "BA", "RTX", "LMT", "HON", "UNP", "DHR",
-    
-    # Communication
     "T", "VZ", "TMUS", "CMCSA", "CHTR", "DISH",
-    
-    # Real Estate
     "AMT", "PLD", "CCI", "EQIX", "SPG", "PSA", "DLR",
-    
-    # Crypto related
     "COIN", "MSTR", "RIOT", "MARA", "CLSK",
-    
-    # Indexes
     "^GSPC", "^DJI", "^IXIC", "^RUT", "^VIX",
 ]
 
-# ==========================================================================
-# 🔥 FOREX - COMPLETE MAJOR + MINOR + CROSS PAIRS (NO EXOTICS)
-# ==========================================================================
-
-# --- MAJOR PAIRS (7 pairs) ---
+# --- FOREX (Major + Minor + Cross, NO Exotics) ---
 MAJOR_PAIRS = [
-    "EURUSD=X",   # Euro / US Dollar
-    "GBPUSD=X",   # British Pound / US Dollar
-    "USDJPY=X",   # US Dollar / Japanese Yen
-    "AUDUSD=X",   # Australian Dollar / US Dollar
-    "USDCAD=X",   # US Dollar / Canadian Dollar
-    "USDCHF=X",   # US Dollar / Swiss Franc
-    "NZDUSD=X",   # New Zealand Dollar / US Dollar
+    "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", 
+    "USDCAD=X", "USDCHF=X", "NZDUSD=X",
 ]
 
-# --- MINOR PAIRS (Cross pairs without USD) ---
 MINOR_PAIRS = [
-    # Euro crosses
-    "EURGBP=X",   # Euro / British Pound
-    "EURJPY=X",   # Euro / Japanese Yen
-    "EURCHF=X",   # Euro / Swiss Franc
-    "EURCAD=X",   # Euro / Canadian Dollar
-    "EURAUD=X",   # Euro / Australian Dollar
-    "EURNZD=X",   # Euro / New Zealand Dollar
-    
-    # Pound crosses
-    "GBPJPY=X",   # British Pound / Japanese Yen
-    "GBPCHF=X",   # British Pound / Swiss Franc
-    "GBPCAD=X",   # British Pound / Canadian Dollar
-    "GBPAUD=X",   # British Pound / Australian Dollar
-    "GBPNZD=X",   # British Pound / New Zealand Dollar
-    
-    # Yen crosses
-    "AUDJPY=X",   # Australian Dollar / Japanese Yen
-    "CADJPY=X",   # Canadian Dollar / Japanese Yen
-    "CHFJPY=X",   # Swiss Franc / Japanese Yen
-    "NZDJPY=X",   # New Zealand Dollar / Japanese Yen
-    
-    # Other crosses
-    "AUDCAD=X",   # Australian Dollar / Canadian Dollar
-    "AUDCHF=X",   # Australian Dollar / Swiss Franc
-    "AUDNZD=X",   # Australian Dollar / New Zealand Dollar
-    "CADCHF=X",   # Canadian Dollar / Swiss Franc
-    "NZDCAD=X",   # New Zealand Dollar / Canadian Dollar
-    "NZDCHF=X",   # New Zealand Dollar / Swiss Franc
+    # Euro Crosses
+    "EURGBP=X", "EURJPY=X", "EURCHF=X", "EURCAD=X", 
+    "EURAUD=X", "EURNZD=X",
+    # Pound Crosses
+    "GBPJPY=X", "GBPCHF=X", "GBPCAD=X", "GBPAUD=X", "GBPNZD=X",
+    # Yen Crosses
+    "AUDJPY=X", "CADJPY=X", "CHFJPY=X", "NZDJPY=X",
+    # Other Crosses
+    "AUDCAD=X", "AUDCHF=X", "AUDNZD=X", "CADCHF=X", 
+    "NZDCAD=X", "NZDCHF=X",
 ]
 
-# --- INDIAN RUPEE PAIRS (Added in Cross category) ---
 INR_PAIRS = [
-    "USDINR=X",   # US Dollar / Indian Rupee
-    "EURINR=X",   # Euro / Indian Rupee
-    "GBPINR=X",   # British Pound / Indian Rupee
-    "JPYINR=X",   # Japanese Yen / Indian Rupee
+    "USDINR=X", "EURINR=X", "GBPINR=X", "JPYINR=X",
 ]
 
-# --- COMBINE ALL FOREX (NO EXOTICS) ---
 FOREX_TICKERS = MAJOR_PAIRS + MINOR_PAIRS + INR_PAIRS
 
 # --- COMMODITIES ---
 COMMODITY_TICKERS = [
-    # Metals
-    "GC=F",  # Gold
-    "SI=F",  # Silver
-    "HG=F",  # Copper
-    "PL=F",  # Platinum
-    "PA=F",  # Palladium
-    
-    # Energy
-    "CL=F",  # Crude Oil WTI
-    "BZ=F",  # Brent Crude
-    "NG=F",  # Natural Gas
-    "RB=F",  # Gasoline
-    "HO=F",  # Heating Oil
-    
-    # Agriculture
-    "ZC=F",  # Corn
-    "ZS=F",  # Soybean
-    "ZW=F",  # Wheat
-    "ZM=F",  # Soybean Meal
-    "ZL=F",  # Soybean Oil
-    "CT=F",  # Cotton
-    "SB=F",  # Sugar
-    "KC=F",  # Coffee
-    "CC=F",  # Cocoa
-    
-    # Others
-    "LE=F",  # Live Cattle
-    "HE=F",  # Lean Hogs
-    "GF=F",  # Feeder Cattle
+    "GC=F", "SI=F", "HG=F", "PL=F", "PA=F",
+    "CL=F", "BZ=F", "NG=F", "RB=F", "HO=F",
+    "ZC=F", "ZS=F", "ZW=F", "ZM=F", "ZL=F",
+    "CT=F", "SB=F", "KC=F", "CC=F",
+    "LE=F", "HE=F", "GF=F",
 ]
 
 # --- CRYPTO (ONLY BTC-USD) ---
-CRYPTO_TICKERS = [
-    "BTC-USD",  # Only Bitcoin
-]
+CRYPTO_TICKERS = ["BTC-USD"]
 
 # ==========================================================================
 # 🔥 COMBINE ALL SYMBOLS
@@ -266,8 +160,11 @@ RR_TARGET = 3.0
 PRE_ENTRY_MULT = 1.5
 BASE_COUNT_FILTER = "All"
 
-# 🔥 Set to False for ALL zones alerts
-ONLY_LATEST_BAR = False
+# 🔥 CRITICAL: Sirf LATEST candle ke alerts chahiye - Continuous alerts rokne ke liye
+ONLY_LATEST_BAR = True
+
+# 🔥 Debounce time (seconds) - same zone ka alert itne time baad hi aayega
+DEBOUNCE_SECONDS = 3600  # 1 hour
 
 STATE_FILE = "alerted_state.json"
 MAX_STATE_KEYS = 5000
@@ -345,6 +242,9 @@ def save_state(keys: set) -> None:
     try:
         with open(STATE_FILE, "w") as f:
             json.dump(keys_list, f)
+            f.flush()
+            os.fsync(f.fileno())
+        logger.info(f"✅ State saved: {len(keys_list)} keys")
     except Exception as e:
         logger.error(f"Error saving state: {e}")
 
@@ -369,11 +269,28 @@ def send_alert_with_retry(bot_token: str, chat_id: str, text: str, chart_bytes: 
     return False, "All retries failed"
 
 
+def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
+    """Check if alert should be sent (with debounce)"""
+    if key in sent_keys:
+        return False
+    
+    # Check debounce
+    if key in last_alert_time:
+        time_diff = time.time() - last_alert_time[key]
+        if time_diff < DEBOUNCE_SECONDS:
+            logger.info(f"  ⏱️ Debounce: {key} - waiting {DEBOUNCE_SECONDS - time_diff:.0f}s more")
+            return False
+    
+    return True
+
+
 def main():
     logger.info("=" * 60)
     logger.info(f"🚀 ZONE SCANNER STARTED at {dt.datetime.now()}")
     logger.info(f"📊 Total Symbols: {len(TICKERS)}")
     logger.info(f"📊 Total Timeframes: {len(INTERVALS)}")
+    logger.info(f"📌 ONLY_LATEST_BAR: {ONLY_LATEST_BAR}")
+    logger.info(f"⏱️ DEBOUNCE_SECONDS: {DEBOUNCE_SECONDS}s")
     logger.info("=" * 60)
     
     if not BOT_TOKEN or not CHAT_ID:
@@ -382,6 +299,9 @@ def main():
 
     sent_keys = load_state()
     logger.info(f"📂 Loaded {len(sent_keys)} previously alerted keys")
+    
+    # 🔥 Debounce tracking
+    last_alert_time = {}
     
     new_count = 0
     total_events = 0
@@ -417,23 +337,40 @@ def main():
             
             if events:
                 logger.info(f"  🔍 Found {len(events)} events")
+                for e in events[:5]:  # Show first 5 events
+                    logger.info(f"    - {e['type']} at bar {e['bar']}")
+                if len(events) > 5:
+                    logger.info(f"    ... and {len(events) - 5} more")
             else:
                 logger.info(f"  ℹ️ No events found")
             
-            if ONLY_LATEST_BAR and events:
+            # 🔥 Filter ONLY_LATEST_BAR
+            if ONLY_LATEST_BAR:
                 last_bar = len(df) - 1
                 events = [e for e in events if e["bar"] == last_bar]
-                logger.info(f"  📌 Filtered to latest bar: {len(events)} events")
+                if events:
+                    logger.info(f"  📌 Filtered to latest bar: {len(events)} events")
             
+            # Process each event
             for e in events:
                 key = alert_key(tkr, itv, e)
-                if key in sent_keys:
+                
+                # 🔥 Check debounce + state
+                if not should_send_alert(key, sent_keys, last_alert_time):
                     continue
                     
                 sent_keys.add(key)
+                last_alert_time[key] = time.time()
+                logger.info(f"  🆕 New alert: {key}")
+                
+                # Build alert text
                 txt = build_alert_text(tkr, itv, e, df, RR_TARGET)
+                logger.info(f"  📝 Alert text: {txt[:100]}...")
+                
+                # Render chart
                 chart_bytes = render_zone_chart(df, e, tkr, itv)
                 
+                # Send with retry
                 ok, msg = send_alert_with_retry(BOT_TOKEN, CHAT_ID, txt, chart_bytes)
                 
                 icon = ALERT_ICONS.get(e["type"], "🔔")
@@ -441,19 +378,26 @@ def main():
                     logger.info(f"  ✅ {icon} ALERT SENT: {tkr} {itv} {e['type']}")
                     new_count += 1
                 else:
-                    logger.error(f"  ❌ Failed: {msg}")
+                    logger.error(f"  ❌ Failed to send alert: {msg}")
 
+    # Save state
     save_state(sent_keys)
     
+    # Summary
     logger.info("\n" + "=" * 60)
     logger.info("📊 SCAN COMPLETE")
     logger.info(f"  • Total symbols: {len(TICKERS)}")
     logger.info(f"  • Total timeframes: {len(INTERVALS)}")
     logger.info(f"  • Total zones found: {total_zones}")
-    logger.info(f"  • Total events: {total_events}")
+    logger.info(f"  • Total events detected: {total_events}")
     logger.info(f"  • New alerts sent: {new_count}")
     if skipped:
         logger.warning(f"  ⚠️ Skipped: {len(skipped)} combinations")
+        # Show first 10 skipped
+        for skip in skipped[:10]:
+            logger.warning(f"    - {skip}")
+        if len(skipped) > 10:
+            logger.warning(f"    ... and {len(skipped) - 10} more")
     logger.info("=" * 60)
 
 
