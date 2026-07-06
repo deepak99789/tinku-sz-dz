@@ -24,6 +24,7 @@ import struct
 import base64
 import math
 import datetime as dt
+import time
 
 try:
     from streamlit_autorefresh import st_autorefresh
@@ -32,7 +33,7 @@ except ImportError:
     AUTOREFRESH_AVAILABLE = False
 
 from pattern_engine import run_full_pipeline
-from telegram_utils import send_telegram_message, send_telegram_photo
+from telegram_utils import send_telegram_message, send_telegram_photo, wait_if_needed
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
 
 st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
@@ -447,21 +448,32 @@ if trigger_scan:
         if sound_on:
             play_beep()
 
-    # ---- Telegram - dedup INDEPENDENT of in-app log, so enabling Telegram
-    # later still delivers alerts that were already shown in-app before ----
+    # ---- Telegram - dedup INDEPENDENT of in-app log + RATE LIMITING ----
     if telegram_on:
         to_send = [c for c in collected if c["key"] not in st.session_state["telegram_sent_keys"]]
         if not bot_token or not chat_id:
             if to_send:
                 st.warning("📨 Telegram ON hai lekin Bot Token / Chat ID khaali hai — alert nahi bheja ja saka.")
+        
+        # 🔥 Send with rate limiting
+        sent_count = 0
         for c in to_send:
+            # 🔥 Rate limit check - wait after every 3 messages
+            if sent_count > 0 and sent_count % 3 == 0:
+                st.info(f"⏱️ Rate limit: Waiting 2 seconds... ({sent_count} messages sent)")
+                time.sleep(2)
+            
             chart_bytes = render_zone_chart(c["df"], c["event"], c["ticker"], c["interval"])
             if chart_bytes:
                 ok, msg = send_telegram_photo(bot_token, chat_id, chart_bytes, caption=c["text"])
             else:
                 ok, msg = send_telegram_message(bot_token, chat_id, c["text"])
+            
             st.session_state["telegram_sent_keys"].add(c["key"])
-            if not ok:
+            if ok:
+                sent_count += 1
+                st.success(f"✅ Telegram sent: {c['ticker']} [{c['interval']}] - {c['type']}")
+            else:
                 st.warning(f"Telegram ({c['ticker']} [{c['interval']}]): {msg}")
 
 
