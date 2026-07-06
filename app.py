@@ -19,7 +19,6 @@ import numpy as np
 import yfinance as yf
 import plotly.graph_objects as go
 import io
-import os
 import wave
 import struct
 import base64
@@ -34,22 +33,9 @@ except ImportError:
 
 from pattern_engine import run_full_pipeline
 from telegram_utils import send_telegram_message, send_telegram_photo
-from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS, EVENT_STATUS_MAP
+from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
 
 st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
-
-
-def _telegram_default(name: str) -> str:
-    """TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID env var ya st.secrets se default
-    value uthata hai. Isse deploy karte waqt ek baar set kar dene ke baad
-    UI me Bot Token / Chat ID khud-b-khud bhara aata hai - dobara type
-    karne ki zaroorat nahi padti."""
-    try:
-        if name in st.secrets:
-            return str(st.secrets[name])
-    except Exception:
-        pass
-    return os.environ.get(name, "")
 
 # --------------------------------------------------------------------------
 # Presets - starter ticker lists per market. Add jitne chaho, yahin list
@@ -89,11 +75,18 @@ MARKET_PRESETS = {
     },
 }
 
-INTERVAL_OPTIONS = ["5m", "15m", "30m", "1h", "1d", "1wk"]
+# 🔥 UPDATED: ALL TIMEFRAMES
+INTERVAL_OPTIONS = [
+    "5m", "15m", "30m", "45m", "60m", "75m", "125m",
+    "2h", "4h", "5h", "6h", "8h", "10h", "12h", "16h",
+    "1d", "1wk"
+]
+
 PERIOD_OPTIONS = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 PERIOD_BY_INTERVAL = {
-    "5m": "1mo", "15m": "1mo", "30m": "1mo",
-    "1h": "2y", "1d": "5y", "1wk": "10y",
+    "5m": "1mo", "15m": "1mo", "30m": "1mo", "45m": "1mo", "60m": "1mo", "75m": "1mo", "125m": "1mo",
+    "2h": "1mo", "4h": "1mo", "5h": "1mo", "6h": "1mo", "8h": "1mo", "10h": "1mo", "12h": "1mo", "16h": "1mo",
+    "1d": "5y", "1wk": "10y",
 }
 
 STATUS_LABELS = {
@@ -101,8 +94,6 @@ STATUS_LABELS = {
     "SL Zone": "sl",
     "Target Zone": "tp",
 }
-# (EVENT_STATUS_MAP ab alert_common.py se import hota hai - taaki manual
-# Streamlit app aur 24x7 alert_bot.py dono same rule follow karein.)
 
 st.title("📊 Demand & Supply Dashboard")
 st.caption("Python/Streamlit port of the Pine Script RBD / DBD / DBR / RBR zone-detection indicator")
@@ -129,18 +120,11 @@ with settings_box:
             help=preset["suffix_hint"],
         )
     with row1_c3:
-        select_all_status = st.checkbox("✅ All zone statuses", value=True)
         status_choice = st.multiselect(
             "🎯 Zone Status Filter",
-            options=["Fresh Zone", "SL Zone", "Target Zone"],
-            default=["Fresh Zone", "SL Zone", "Target Zone"] if select_all_status else [],
-            disabled=select_all_status,
-            help=(
-                "Fresh = abhi tak SL/Target nahi laga. SL Zone = stoploss hit. "
-                "Target Zone = target hit. Sirf ek status (jaise Fresh) ke "
-                "alert chahiye to pehle upar wala '✅ All zone statuses' "
-                "checkbox OFF karo, phir neeche sirf 'Fresh Zone' select karo."
-            ),
+            options=["All", "Fresh Zone", "SL Zone", "Target Zone"],
+            default=["All"],
+            help="Fresh = abhi tak SL/Target nahi laga. SL Zone = stoploss hit. Target Zone = target hit.",
         )
     with row1_c4:
         select_all_intervals = st.checkbox("✅ Select ALL timeframes", value=False)
@@ -182,21 +166,13 @@ with settings_box:
     st.divider()
 
     # ---- Row 3: Telegram alerts ----
-    # Bot Token / Chat ID ab st.session_state me (key=) save hote hain, isliye
-    # checkbox on/off karne par ya Auto-Scan ke rerun par bhi value udti nahi -
-    # ek baar daal do, session bhar yaad rahega. Agar TELEGRAM_BOT_TOKEN /
-    # TELEGRAM_CHAT_ID env var (ya st.secrets) me pehle se set hai, to fields
-    # apne aap bhare hue aayenge.
-    st.session_state.setdefault("bot_token", _telegram_default("TELEGRAM_BOT_TOKEN"))
-    st.session_state.setdefault("chat_id", _telegram_default("TELEGRAM_CHAT_ID"))
-
     row3_c1, row3_c2, row3_c3, row3_c4 = st.columns([1, 1.3, 1.3, 1])
     with row3_c1:
         telegram_on = st.checkbox("📨 Enable Telegram alerts", value=False)
     with row3_c2:
-        bot_token = st.text_input("Bot Token", type="password", key="bot_token", disabled=not telegram_on)
+        bot_token = st.text_input("Bot Token", type="password") if telegram_on else ""
     with row3_c3:
-        chat_id = st.text_input("Chat ID", key="chat_id", disabled=not telegram_on)
+        chat_id = st.text_input("Chat ID") if telegram_on else ""
     with row3_c4:
         only_latest = st.checkbox("Only latest bar", value=True) if telegram_on else True
 
@@ -230,8 +206,8 @@ if auto_scan_on and AUTOREFRESH_AVAILABLE:
 
 
 def resolve_status_filter(choice_list):
-    """Khaali selection => safe default: sab statuses allow karo."""
-    if not choice_list:
+    """'All' ya empty selection => sab statuses allow karo."""
+    if not choice_list or "All" in choice_list:
         return set(STATUS_LABELS.values())
     return {STATUS_LABELS[c] for c in choice_list if c in STATUS_LABELS}
 
@@ -366,10 +342,6 @@ if trigger_scan:
     st.session_state["last_scan_time"] = dt.datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
     # ---- Collect ALL current alert-worthy events across all combos ----
-    # "Zone Status Filter" (Fresh/SL/Target) jo upar select kiya hai, wahi
-    # ab yahan bhi respect hota hai - taaki "Fresh Zone" select karne par
-    # Telegram/in-app par SL ya Target hit ka alert na aaye.
-    allowed_status_for_alerts = resolve_status_filter(status_choice)
     collected = []
     for (tkr, itv), data in combo_results.items():
         result = data["result"]
@@ -378,10 +350,6 @@ if trigger_scan:
         if only_latest:
             last_bar = len(df) - 1
             events = [e for e in events if e["bar"] == last_bar]
-        events = [
-            e for e in events
-            if EVENT_STATUS_MAP.get(e["type"], "active") in allowed_status_for_alerts
-        ]
         for e in events:
             key = alert_key(tkr, itv, e)
             txt = build_alert_text(tkr, itv, e, df, rr_target)
