@@ -1,6 +1,12 @@
 """
 alert_bot.py - Standalone 24x7 Zone Alert Bot (NO Streamlit, NO PC needed)
 With Rate Limiting to avoid Telegram 429 errors.
+
+Run manually (local test):
+    export TELEGRAM_BOT_TOKEN="your_bot_token"
+    export TELEGRAM_CHAT_ID="your_chat_id"
+    pip install pandas numpy yfinance requests matplotlib
+    python alert_bot.py
 """
 
 import os
@@ -147,14 +153,14 @@ RR_TARGET = 3.0
 PRE_ENTRY_MULT = 1.5
 BASE_COUNT_FILTER = "All"
 
-# 🔥 CRITICAL: Sirf LATEST candle ke alerts
+# 🔥 CRITICAL: Sirf LATEST candle ke alerts (Continuous alerts rokne ke liye)
 ONLY_LATEST_BAR = True
 
-# 🔥 Debounce time (seconds)
+# 🔥 Debounce time (seconds) - same zone ka alert itne time baad hi aayega
 DEBOUNCE_SECONDS = 3600  # 1 hour
 
-# 🔥 Batch size - kitne alerts ek saath bhejne hain
-BATCH_SIZE = 5  # 5 alerts per batch
+# 🔥 Batch size - kitne alerts ek saath bhejne hain (Rate limit ke liye)
+BATCH_SIZE = 5
 
 STATE_FILE = "alerted_state.json"
 MAX_STATE_KEYS = 5000
@@ -179,25 +185,32 @@ PERIOD_LADDER = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
 
 def get_yf_interval(itv: str) -> str:
+    """Convert custom intervals to yfinance-compatible intervals with fallback"""
     supported = ["1m", "2m", "5m", "15m", "30m", "60m", "90m", "1h", "1d", "5d", "1wk", "1mo", "3mo"]
+    
     if itv in supported:
         return itv
+    
     if itv in YF_INTERVAL_MAP:
         fallback = YF_INTERVAL_MAP[itv]
         if fallback != itv:
             logger.info(f"  🔄 {itv} -> using fallback {fallback}")
         return fallback
+    
     logger.warning(f"  ⚠️ {itv} not recognized, using 1h as fallback")
     return "60m"
 
 
 def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
+    """Fetch data with smart period fallback"""
     yf_interval = get_yf_interval(itv)
+    
     idx = PERIOD_LADDER.index(requested_period) if requested_period in PERIOD_LADDER else 0
     for cand in [PERIOD_LADDER[i] for i in range(idx, -1, -1)]:
         try:
             df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"  [warn] {tkr} {itv} {cand}: {e}")
             continue
         if df.empty:
             continue
@@ -233,13 +246,17 @@ def save_state(keys: set) -> None:
 
 
 def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
+    """Check if alert should be sent (with debounce)"""
     if key in sent_keys:
         return False
+    
+    # Check debounce
     if key in last_alert_time:
         time_diff = time.time() - last_alert_time[key]
         if time_diff < DEBOUNCE_SECONDS:
             logger.info(f"  ⏱️ Debounce: {key} - waiting {DEBOUNCE_SECONDS - time_diff:.0f}s more")
             return False
+    
     return True
 
 
@@ -255,6 +272,8 @@ def main():
     
     if not BOT_TOKEN or not CHAT_ID:
         logger.error("❌ TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID missing.")
+        logger.error("   Please set: export TELEGRAM_BOT_TOKEN='your_token'")
+        logger.error("   And: export TELEGRAM_CHAT_ID='your_chat_id'")
         sys.exit(1)
 
     sent_keys = load_state()
@@ -289,7 +308,7 @@ def main():
                     base_count_filter=BASE_COUNT_FILTER,
                 )
             except Exception as e:
-                logger.error(f"❌ Error: {e}")
+                logger.error(f"❌ Error running pipeline: {e}")
                 continue
 
             events = result.events
@@ -298,24 +317,32 @@ def main():
             
             if events:
                 logger.info(f"  🔍 Found {len(events)} events")
+                for e in events[:3]:  # Show first 3 events
+                    logger.info(f"    - {e['type']} at bar {e['bar']}")
+                if len(events) > 3:
+                    logger.info(f"    ... and {len(events) - 3} more")
             else:
                 logger.info(f"  ℹ️ No events found")
             
+            # 🔥 Filter ONLY_LATEST_BAR
             if ONLY_LATEST_BAR:
                 last_bar = len(df) - 1
                 events = [e for e in events if e["bar"] == last_bar]
                 if events:
                     logger.info(f"  📌 Filtered to latest bar: {len(events)} events")
             
+            # Process each event
             for e in events:
                 key = alert_key(tkr, itv, e)
                 
+                # 🔥 Check debounce + state
                 if not should_send_alert(key, sent_keys, last_alert_time):
                     continue
                     
                 sent_keys.add(key)
                 last_alert_time[key] = time.time()
                 
+                # Build alert text
                 txt = build_alert_text(tkr, itv, e, df, RR_TARGET)
                 chart_bytes = render_zone_chart(df, e, tkr, itv)
                 
@@ -375,6 +402,11 @@ def main():
     logger.info(f"  • New alerts sent: {new_count}")
     if skipped:
         logger.warning(f"  ⚠️ Skipped: {len(skipped)} combinations")
+        # Show first 10 skipped
+        for skip in skipped[:10]:
+            logger.warning(f"    - {skip}")
+        if len(skipped) > 10:
+            logger.warning(f"    ... and {len(skipped) - 10} more")
     logger.info("=" * 60)
 
 
