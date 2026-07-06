@@ -448,9 +448,29 @@ if trigger_scan:
         if sound_on:
             play_beep()
 
-    # ---- Telegram - dedup INDEPENDENT of in-app log + RATE LIMITING ----
+    # ============================================================
+    # 🔥 TELEGRAM - SIRF FRESH ZONES (status = "active")
+    # ============================================================
     if telegram_on:
-        to_send = [c for c in collected if c["key"] not in st.session_state["telegram_sent_keys"]]
+        # 🔥 IMPORTANT: Sirf Fresh Zones (status = "active") ke alerts bhejo
+        # Check karo ki user ne "Fresh Zone" select kiya hai ya nahi
+        is_fresh_only = "Fresh Zone" in status_choice and "All" not in status_choice
+        
+        if is_fresh_only:
+            # Sirf active (fresh) zones filter karo
+            to_send = [
+                c for c in collected 
+                if c["key"] not in st.session_state["telegram_sent_keys"] 
+                and c["event"]["zone"].status == "active"
+            ]
+            if to_send:
+                st.info(f"📨 Sirf {len(to_send)} Fresh Zones Telegram par bheje ja rahe hain...")
+        else:
+            # Agar All selected hai toh sab bhejo
+            to_send = [c for c in collected if c["key"] not in st.session_state["telegram_sent_keys"]]
+            if to_send:
+                st.info(f"📨 {len(to_send)} alerts (All Zones) Telegram par bheje ja rahe hain...")
+        
         if not bot_token or not chat_id:
             if to_send:
                 st.warning("📨 Telegram ON hai lekin Bot Token / Chat ID khaali hai — alert nahi bheja ja saka.")
@@ -472,7 +492,9 @@ if trigger_scan:
             st.session_state["telegram_sent_keys"].add(c["key"])
             if ok:
                 sent_count += 1
-                st.success(f"✅ Telegram sent: {c['ticker']} [{c['interval']}] - {c['type']}")
+                zone_status = c["event"]["zone"].status
+                status_text = "Fresh" if zone_status == "active" else zone_status.upper()
+                st.success(f"✅ Telegram sent: {c['ticker']} [{c['interval']}] - {c['type']} ({status_text})")
             else:
                 st.warning(f"Telegram ({c['ticker']} [{c['interval']}]): {msg}")
 
