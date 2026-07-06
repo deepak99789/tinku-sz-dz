@@ -1,15 +1,6 @@
 """
 alert_bot.py - Standalone 24x7 Zone Alert Bot (NO Streamlit, NO PC needed)
-
-Ye script Streamlit app se ALAG hai. Isse GitHub Actions par schedule karke
-chalaya jata hai, isliye aapka PC/laptop band ho tab bhi ye chalta rehta hai
-aur naya zone banate hi Telegram par alert bhej deta hai.
-
-Run manually (local test):
-    export TELEGRAM_BOT_TOKEN="your_bot_token"
-    export TELEGRAM_CHAT_ID="your_chat_id"
-    pip install pandas numpy yfinance requests matplotlib
-    python alert_bot.py
+With Rate Limiting to avoid Telegram 429 errors.
 """
 
 import os
@@ -23,7 +14,7 @@ import pandas as pd
 import yfinance as yf
 
 from pattern_engine import run_full_pipeline
-from telegram_utils import send_telegram_message, send_telegram_photo
+from telegram_utils import send_telegram_message, send_telegram_photo, wait_if_needed
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
 
 # ==========================================================================
@@ -98,14 +89,10 @@ MAJOR_PAIRS = [
 ]
 
 MINOR_PAIRS = [
-    # Euro Crosses
     "EURGBP=X", "EURJPY=X", "EURCHF=X", "EURCAD=X", 
     "EURAUD=X", "EURNZD=X",
-    # Pound Crosses
     "GBPJPY=X", "GBPCHF=X", "GBPCAD=X", "GBPAUD=X", "GBPNZD=X",
-    # Yen Crosses
     "AUDJPY=X", "CADJPY=X", "CHFJPY=X", "NZDJPY=X",
-    # Other Crosses
     "AUDCAD=X", "AUDCHF=X", "AUDNZD=X", "CADCHF=X", 
     "NZDCAD=X", "NZDCHF=X",
 ]
@@ -160,11 +147,14 @@ RR_TARGET = 3.0
 PRE_ENTRY_MULT = 1.5
 BASE_COUNT_FILTER = "All"
 
-# 🔥 CRITICAL: Sirf LATEST candle ke alerts chahiye - Continuous alerts rokne ke liye
+# 🔥 CRITICAL: Sirf LATEST candle ke alerts
 ONLY_LATEST_BAR = True
 
-# 🔥 Debounce time (seconds) - same zone ka alert itne time baad hi aayega
+# 🔥 Debounce time (seconds)
 DEBOUNCE_SECONDS = 3600  # 1 hour
+
+# 🔥 Batch size - kitne alerts ek saath bhejne hain
+BATCH_SIZE = 5  # 5 alerts per batch
 
 STATE_FILE = "alerted_state.json"
 MAX_STATE_KEYS = 5000
@@ -189,32 +179,25 @@ PERIOD_LADDER = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
 
 def get_yf_interval(itv: str) -> str:
-    """Convert custom intervals to yfinance-compatible intervals with fallback"""
     supported = ["1m", "2m", "5m", "15m", "30m", "60m", "90m", "1h", "1d", "5d", "1wk", "1mo", "3mo"]
-    
     if itv in supported:
         return itv
-    
     if itv in YF_INTERVAL_MAP:
         fallback = YF_INTERVAL_MAP[itv]
         if fallback != itv:
             logger.info(f"  🔄 {itv} -> using fallback {fallback}")
         return fallback
-    
     logger.warning(f"  ⚠️ {itv} not recognized, using 1h as fallback")
     return "60m"
 
 
 def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
-    """Fetch data with smart period fallback"""
     yf_interval = get_yf_interval(itv)
-    
     idx = PERIOD_LADDER.index(requested_period) if requested_period in PERIOD_LADDER else 0
     for cand in [PERIOD_LADDER[i] for i in range(idx, -1, -1)]:
         try:
             df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False)
-        except Exception as e:
-            logger.warning(f"  [warn] {tkr} {itv} {cand}: {e}")
+        except Exception:
             continue
         if df.empty:
             continue
@@ -249,38 +232,14 @@ def save_state(keys: set) -> None:
         logger.error(f"Error saving state: {e}")
 
 
-def send_alert_with_retry(bot_token: str, chat_id: str, text: str, chart_bytes: bytes = None, max_retries: int = 3):
-    """Send alert with retry logic"""
-    for attempt in range(max_retries):
-        try:
-            if chart_bytes:
-                ok, msg = send_telegram_photo(bot_token, chat_id, chart_bytes, caption=text)
-            else:
-                ok, msg = send_telegram_message(bot_token, chat_id, text)
-            
-            if ok:
-                return True, msg
-            if attempt < max_retries - 1:
-                time.sleep(2)
-        except Exception as e:
-            logger.error(f"Attempt {attempt+1} error: {e}")
-            if attempt < max_retries - 1:
-                time.sleep(2)
-    return False, "All retries failed"
-
-
 def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
-    """Check if alert should be sent (with debounce)"""
     if key in sent_keys:
         return False
-    
-    # Check debounce
     if key in last_alert_time:
         time_diff = time.time() - last_alert_time[key]
         if time_diff < DEBOUNCE_SECONDS:
             logger.info(f"  ⏱️ Debounce: {key} - waiting {DEBOUNCE_SECONDS - time_diff:.0f}s more")
             return False
-    
     return True
 
 
@@ -291,6 +250,7 @@ def main():
     logger.info(f"📊 Total Timeframes: {len(INTERVALS)}")
     logger.info(f"📌 ONLY_LATEST_BAR: {ONLY_LATEST_BAR}")
     logger.info(f"⏱️ DEBOUNCE_SECONDS: {DEBOUNCE_SECONDS}s")
+    logger.info(f"📦 BATCH_SIZE: {BATCH_SIZE}")
     logger.info("=" * 60)
     
     if not BOT_TOKEN or not CHAT_ID:
@@ -300,13 +260,14 @@ def main():
     sent_keys = load_state()
     logger.info(f"📂 Loaded {len(sent_keys)} previously alerted keys")
     
-    # 🔥 Debounce tracking
     last_alert_time = {}
-    
     new_count = 0
     total_events = 0
     total_zones = 0
     skipped = []
+    
+    # 🔥 Store alerts to send in batch
+    pending_alerts = []
 
     for tkr in TICKERS:
         for itv in INTERVALS:
@@ -337,48 +298,68 @@ def main():
             
             if events:
                 logger.info(f"  🔍 Found {len(events)} events")
-                for e in events[:5]:  # Show first 5 events
-                    logger.info(f"    - {e['type']} at bar {e['bar']}")
-                if len(events) > 5:
-                    logger.info(f"    ... and {len(events) - 5} more")
             else:
                 logger.info(f"  ℹ️ No events found")
             
-            # 🔥 Filter ONLY_LATEST_BAR
             if ONLY_LATEST_BAR:
                 last_bar = len(df) - 1
                 events = [e for e in events if e["bar"] == last_bar]
                 if events:
                     logger.info(f"  📌 Filtered to latest bar: {len(events)} events")
             
-            # Process each event
             for e in events:
                 key = alert_key(tkr, itv, e)
                 
-                # 🔥 Check debounce + state
                 if not should_send_alert(key, sent_keys, last_alert_time):
                     continue
                     
                 sent_keys.add(key)
                 last_alert_time[key] = time.time()
-                logger.info(f"  🆕 New alert: {key}")
                 
-                # Build alert text
                 txt = build_alert_text(tkr, itv, e, df, RR_TARGET)
-                logger.info(f"  📝 Alert text: {txt[:100]}...")
-                
-                # Render chart
                 chart_bytes = render_zone_chart(df, e, tkr, itv)
                 
-                # Send with retry
-                ok, msg = send_alert_with_retry(BOT_TOKEN, CHAT_ID, txt, chart_bytes)
+                # 🔥 Add to pending alerts instead of sending immediately
+                pending_alerts.append({
+                    "ticker": tkr,
+                    "interval": itv,
+                    "type": e["type"],
+                    "text": txt,
+                    "chart_bytes": chart_bytes,
+                    "key": key
+                })
                 
-                icon = ALERT_ICONS.get(e["type"], "🔔")
-                if ok:
-                    logger.info(f"  ✅ {icon} ALERT SENT: {tkr} {itv} {e['type']}")
-                    new_count += 1
-                else:
-                    logger.error(f"  ❌ Failed to send alert: {msg}")
+                logger.info(f"  📝 Queued: {tkr} {itv} {e['type']}")
+
+    # ============================================================
+    # 🔥 SEND ALERTS IN BATCHES WITH RATE LIMITING
+    # ============================================================
+    
+    logger.info(f"\n📤 Sending {len(pending_alerts)} queued alerts in batches...")
+    
+    for i in range(0, len(pending_alerts), BATCH_SIZE):
+        batch = pending_alerts[i:i + BATCH_SIZE]
+        
+        for alert in batch:
+            # 🔥 Wait for rate limit before each message
+            # (wait_if_needed is called inside send functions)
+            
+            if alert["chart_bytes"]:
+                ok, msg = send_telegram_photo(BOT_TOKEN, CHAT_ID, alert["chart_bytes"], caption=alert["text"])
+            else:
+                ok, msg = send_telegram_message(BOT_TOKEN, CHAT_ID, alert["text"])
+            
+            icon = ALERT_ICONS.get(alert["type"], "🔔")
+            if ok:
+                logger.info(f"  ✅ {icon} ALERT SENT: {alert['ticker']} {alert['interval']} {alert['type']}")
+                new_count += 1
+            else:
+                logger.error(f"  ❌ Failed: {alert['ticker']} {alert['interval']} - {msg}")
+        
+        # 🔥 Wait between batches
+        if i + BATCH_SIZE < len(pending_alerts):
+            logger.info(f"⏳ Waiting 3 seconds before next batch...")
+            time.sleep(3)
 
     # Save state
     save_state(sent_keys)
@@ -390,14 +371,10 @@ def main():
     logger.info(f"  • Total timeframes: {len(INTERVALS)}")
     logger.info(f"  • Total zones found: {total_zones}")
     logger.info(f"  • Total events detected: {total_events}")
+    logger.info(f"  • New alerts queued: {len(pending_alerts)}")
     logger.info(f"  • New alerts sent: {new_count}")
     if skipped:
         logger.warning(f"  ⚠️ Skipped: {len(skipped)} combinations")
-        # Show first 10 skipped
-        for skip in skipped[:10]:
-            logger.warning(f"    - {skip}")
-        if len(skipped) > 10:
-            logger.warning(f"    ... and {len(skipped) - 10} more")
     logger.info("=" * 60)
 
 
