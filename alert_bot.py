@@ -44,11 +44,39 @@ from telegram_utils import send_telegram_message, send_telegram_photo
 # ==========================================================================
 # ⚙️ CONFIG - apni pasand ke hisaab se yahan edit karo
 # ==========================================================================
-TICKERS = [
-    "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
-    "SBIN.NS", "ITC.NS", "LT.NS", "AXISBANK.NS", "KOTAKBANK.NS",
-    # jitne chaho utne tickers yahan add kar do (NSE/BSE/US/Forex/Crypto sab chalega)
-]
+TICKERS = {
+    "Indian Stocks (NSE)": {
+        "suffix_hint": "e.g. RELIANCE.NS, TCS.NS, INFY.NS",
+        "tickers": [
+            "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
+            "SBIN.NS", "ITC.NS", "LT.NS", "AXISBANK.NS", "KOTAKBANK.NS",
+            "BAJFINANCE.NS", "HINDUNILVR.NS", "MARUTI.NS", "SUNPHARMA.NS", "TATAMOTORS.NS",
+        ],
+    },
+    "Indian Stocks (BSE)": {
+        "suffix_hint": "e.g. RELIANCE.BO, TCS.BO",
+        "tickers": ["RELIANCE.BO", "TCS.BO", "INFY.BO", "HDFCBANK.BO", "SBIN.BO"],
+    },
+    "US Stocks / Index": {
+        "suffix_hint": "e.g. AAPL, TSLA, ^GSPC, ^DJI",
+        "tickers": [
+            "AAPL", "TSLA", "MSFT", "GOOGL", "AMZN", "NVDA", "META",
+            "^GSPC", "^DJI", "^IXIC",
+        ],
+    },
+    "Forex": {
+        "suffix_hint": "e.g. EURUSD=X, USDINR=X, GBPJPY=X",
+        "tickers": ["EURUSD=X", "USDINR=X", "GBPJPY=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X"],
+    },
+    "Commodity": {
+        "suffix_hint": "e.g. GC=F (Gold), CL=F (Crude), SI=F (Silver)",
+        "tickers": ["GC=F", "CL=F", "SI=F", "NG=F", "HG=F"],
+    },
+    "Crypto": {
+        "suffix_hint": "e.g. BTC-USD, ETH-USD, SOL-USD",
+        "tickers": ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD"],
+    },
+}
 
 INTERVALS = ["15m", "1h", "1d"]   # jo bhi timeframes track karne hain
 
