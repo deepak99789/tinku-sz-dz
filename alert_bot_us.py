@@ -18,63 +18,83 @@ from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
 
 # ==========================================================================
-# ⚙️ CONFIG - US100 STOCKS
+# ⚙️ CONFIG - US100 STOCKS (CLEANED - No Delisted Symbols)
 # ==========================================================================
 
-# 🔥 TIMEFRAMES
 INTERVALS = [
     "5m", "15m", "30m", "75m", "125m", "2h", "1d", "1wk"
 ]
 
-# 🔥 US100 STOCKS (NASDAQ 100)
+# 🔥 US100 STOCKS - CLEANED (Removed: SQ, PXD, DISH, ATVI, TWTR, FB, VXX, etc.)
 TICKERS = [
-    # Technology
+    # ===== TECHNOLOGY =====
     "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
     "NFLX", "ADBE", "CRM", "ORCL", "IBM", "CSCO", "INTC",
     "AMD", "QCOM", "TXN", "AVGO", "MU", "ARM",
     "PLTR", "SNOW", "CRWD", "ZS", "PANW", "FTNT", "OKTA",
-    "DDOG", "MDB", "TEAM", "NET", "ZS", "HUBS", "NOW",
+    "DDOG", "MDB", "TEAM", "NET", "HUBS", "NOW",
     "ADSK", "CDNS", "SNPS", "NXPI", "MCHP", "ADI", "SWKS",
+    "MRVL", "ANSS", "ROP", "TYL", "PTC", "VRSN", "AKAM",
+    "ANET", "DELL", "HPQ", "HPE", "NTAP", "STX", "WDC",
+    "SMCI", "ON", "TER", "ENTG", "LRCX", "KLAC", "AMAT",
     
-    # Finance
+    # ===== FINANCE =====
     "JPM", "BAC", "WFC", "C", "GS", "MS", "V", "MA", "PYPL",
-    "SQ", "COIN", "BLK", "AXP", "USB", "PNC", "TFC",
+    "COIN", "BLK", "AXP", "USB", "PNC", "TFC",
     "SCHW", "AMTD", "FIS", "FISV", "GPN", "JKHY",
+    "MCO", "SPGI", "ICE", "NDAQ", "CME", "CBOE",
+    "SYF", "DFS", "ALLY", "SOFI", "HOOD",
     
-    # Healthcare
+    # ===== HEALTHCARE =====
     "JNJ", "PFE", "MRK", "UNH", "CVS", "ABBV", "LLY",
     "GILD", "BIIB", "AMGN", "VRTX", "REGN", "MRNA",
     "ISRG", "DHR", "TMO", "ABT", "MDT", "SYK", "BSX",
     "ZTS", "EW", "IDXX", "DXCM", "ALGN", "HUM", "CI",
+    "ELV", "CNC", "MOH", "WBA", "COR", "CAH",
+    "BHC", "NBIX", "INCY", "UTHR", "ALNY",
     
-    # Consumer
+    # ===== CONSUMER =====
     "PG", "KO", "PEP", "WMT", "COST", "HD", "MCD", "SBUX",
     "NKE", "DIS", "UPS", "FDX", "TGT", "LOW", "KHC",
-    "CMG", "SBUX", "BKNG", "EXPE", "MAR", "HLT", "RCL",
-    "CCL", "NCLH", "YUM", "DPZ", "QSR",
+    "CMG", "BKNG", "EXPE", "MAR", "HLT", "RCL",
+    "CCL", "NCLH", "YUM", "DPZ", "QSR", "DRI",
+    "MGM", "WYNN", "LVS", "CZR",
+    "ABNB", "UBER", "LYFT", "DASH",
+    "EL", "CLX", "CHD", "CL", "KMB",
     
-    # Energy
+    # ===== ENERGY =====
     "XOM", "CVX", "COP", "SLB", "EOG", "OXY", "PSX", "VLO",
-    "MPC", "PXD", "DVN", "HAL", "BKR", "FTI", "NOV",
+    "MPC", "DVN", "HAL", "BKR", "FTI", "NOV",
+    "KMI", "OKE", "WMB", "LNG", "EQT",
+    "FANG", "MRO", "CTRA", "HES", "APA",
     
-    # Industrial
+    # ===== INDUSTRIAL =====
     "GE", "CAT", "BA", "RTX", "LMT", "HON", "UNP", "DHR",
     "DE", "CARR", "OTIS", "CTAS", "MMM", "EMR", "ETN",
     "ITW", "CMI", "PH", "AME", "ROK", "IR", "URI",
+    "PCAR", "FAST", "GWW", "ODFL", "XPO",
+    "FDX", "UPS", "JBHT", "CHRW",
+    "GD", "NOC", "LHX", "HII",
     
-    # Communication
-    "T", "VZ", "TMUS", "CMCSA", "CHTR", "DISH",
-    "ATVI", "EA", "TTWO", "NTAP", "STX", "WDC",
+    # ===== COMMUNICATION =====
+    "T", "VZ", "TMUS", "CMCSA", "CHTR",
+    "EA", "TTWO", "SNAP", "PINS", "MTCH",
+    "ROKU", "ZG", "GOOGL", "META", "NFLX",
     
-    # Real Estate
+    # ===== REAL ESTATE =====
     "AMT", "PLD", "CCI", "EQIX", "SPG", "PSA", "DLR",
     "VICI", "ARE", "AVB", "EQR", "ESS", "MAA", "SUI",
+    "UDR", "INVH", "CPT", "AIV", "BXP", "FRT", "KIM",
+    "REG", "WY", "LAMR", "CUBE",
     
-    # Crypto related
+    # ===== CRYPTO RELATED =====
     "COIN", "MSTR", "RIOT", "MARA", "CLSK",
+    "HOOD", "SOFI", "WULF", "CIFR", "HUT",
     
-    # ETFs & Indexes
+    # ===== ETFs & INDEXES =====
     "SPY", "QQQ", "DIA", "IWM", "VOO", "VTI",
+    "XLK", "XLF", "XLV", "XLE", "XLI", "XLY",
+    "XLP", "XLU", "XLRE", "XLC", "XLB",
 ]
 
 YF_INTERVAL_MAP = {
