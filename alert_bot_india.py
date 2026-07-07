@@ -268,7 +268,7 @@ def main():
   • Zones found: {total_zones}
   • New alerts: {new_count}
   • ⏱️ {dt.datetime.now().strftime('%d-%b %H:%M:%S')}"""
-    send_telegram_message(BOT_TOKEN, CHAT_ID, summary)
+    
     
     logger.info("📊 NIFTY 200 SCAN COMPLETE")
 
