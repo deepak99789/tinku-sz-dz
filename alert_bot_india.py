@@ -39,11 +39,11 @@ TICKERS = [
     "BRITANNIA.NS", "HINDALCO.NS", "EICHERMOT.NS", "BAJAJFINSV.NS", "ADANIGREEN.NS",
     "ADANIENT.NS", "VEDL.NS", "TATASTEEL.NS", "JINDALSTEL.NS", "M&M.NS",
     "BANKBARODA.NS", "PNB.NS", "CANBK.NS", "INDUSINDBK.NS", "YESBANK.NS",
-    "TATAMOTORS",  # 🔥 Changed from TATAMOTORS.NS
+    "TATAMOTORS",  # Changed from TATAMOTORS.NS
     
     # ===== NIFTY NEXT 50 =====
     "FEDERALBNK.NS", "IDFCFIRSTB.NS", "RBLBANK.NS", "AUBANK.NS",
-    "MPHASIS.NS", "COFORGE.NS", "LTTS.NS",  # 🔥 LTI+Mindtree merged → LTTS
+    "MPHASIS.NS", "COFORGE.NS", "LTTS.NS",  # LTI+Mindtree merged → LTTS
     "PERSISTENT.NS", "ZENSARTECH.NS",
     "CIPLA.NS", "GLENMARK.NS", "AUROPHARMA.NS", "LUPIN.NS", "TORNTPHARM.NS",
     "APOLLOHOSP.NS", "FORTIS.NS", "MAXHEALTH.NS",
@@ -53,9 +53,9 @@ TICKERS = [
     "TATAPOWER.NS", "ADANIPOWER.NS", "GAIL.NS", "PETRONET.NS", "IOC.NS", "BPCL.NS",
     "HINDZINC.NS", "NMDC.NS", "SAIL.NS",
     "DLF.NS", "GODREJPROP.NS", "OBEROIRLTY.NS", "PRESTIGE.NS", "SOBHA.NS",
-    "LTFH.NS",  # 🔥 Changed from L&TFH.NS
+    "LTFH.NS",  # Changed from L&TFH.NS
     "RECLTD.NS", "PFC.NS", "NHPC.NS", "IRCTC.NS",
-    "SUNTV.NS", "PVRINOX.NS", "ZEEL.NS",  # 🔥 Changed from ZEE.NS
+    "SUNTV.NS", "PVRINOX.NS", "ZEEL.NS",  # Changed from ZEE.NS
     "NETWORK18.NS",
     "HAL.NS", "BEL.NS", "BHEL.NS", "SIEMENS.NS", "ABB.NS",
     "SUZLON.NS", "TATACHEM.NS", "UPL.NS", "PIIND.NS",
@@ -78,7 +78,7 @@ TICKERS = [
     "MUTHOOTFIN.NS", "NATIONALUM.NS", "NAUKRI.NS",
     "NAVINFLUOR.NS", "PAGEIND.NS", "PEL.NS",
     "RAMCOCEM.NS", "SHREECEM.NS",
-    "SRTRANSFIN",  # 🔥 Changed from SRTRANSFIN.NS
+    "SRTRANSFIN",  # Changed from SRTRANSFIN.NS
     "TRENT.NS", "UBL.NS", "VOLTAS.NS", "ZYDUSLIFE.NS",
 ]
 
@@ -99,6 +99,10 @@ BASE_COUNT_FILTER = "All"
 ONLY_LATEST_BAR = True
 DEBOUNCE_SECONDS = 3600
 BATCH_SIZE = 5
+
+# ==========================================================================
+# 🔥 STATE FILE - FIXED
+# ==========================================================================
 
 STATE_FILE = "alerted_state_india.json"
 MAX_STATE_KEYS = 5000
@@ -144,13 +148,25 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+# ==========================================================================
+# 🔥 STATE FILE FUNCTIONS - FIXED
+# ==========================================================================
+
 def load_state() -> set:
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE) as f:
                 data = json.load(f)
-                return set(data) if isinstance(data, list) else set()
-        except Exception:
+                if isinstance(data, list):
+                    return set(data)
+                else:
+                    logger.warning("⚠️ State file format is not a list, resetting...")
+                    return set()
+        except json.JSONDecodeError as e:
+            logger.warning(f"⚠️ State file corrupted, resetting: {e}")
+            return set()
+        except Exception as e:
+            logger.warning(f"Error loading state: {e}")
             return set()
     return set()
 
@@ -159,12 +175,12 @@ def save_state(keys: set) -> None:
     keys_list = list(keys)[-MAX_STATE_KEYS:]
     try:
         with open(STATE_FILE, "w") as f:
-            json.dump(keys_list, f)
+            json.dump(keys_list, f, indent=2)  # Pretty format
             f.flush()
             os.fsync(f.fileno())
         logger.info(f"✅ State saved: {len(keys_list)} keys")
     except Exception as e:
-        logger.error(f"Error saving state: {e}")
+        logger.error(f"❌ Error saving state: {e}")
 
 
 def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
@@ -189,6 +205,8 @@ def main():
         sys.exit(1)
 
     sent_keys = load_state()
+    logger.info(f"📂 Loaded {len(sent_keys)} previously alerted keys")
+    
     last_alert_time = {}
     new_count = 0
     total_events = 0
