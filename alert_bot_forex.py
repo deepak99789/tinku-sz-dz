@@ -1,8 +1,9 @@
 """
-alert_bot_forex.py - 💱 Forex + Commodity + Crypto 24x7 Alert Bot
+alert_bot_forex.py - 💱 Forex + Commodity + Crypto + Indices 24x7 Alert Bot
 Forex: Major + Minor + Cross
-Commodity: XAUUSD, XAGUSD, Aluminium (Zinc removed - not available on yfinance)
+Commodity: XAUUSD, XAGUSD, Aluminium (Zinc removed)
 Crypto: BTCUSD
+Indices: S&P500, US30, US100, Russell 2000, GER40, JPN225
 Timeframes: 5m, 15m, 30m, 45m, 75m, 125m, 1h, 2h, 4h, 5h, 6h, 8h, 10h, 12h, 16h, Daily, Weekly
 """
 
@@ -21,7 +22,7 @@ from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
 
 # ==========================================================================
-# ⚙️ CONFIG - FOREX + COMMODITY + CRYPTO
+# ⚙️ CONFIG - FOREX + COMMODITY + CRYPTO + INDICES
 # ==========================================================================
 
 # 🔥 TIMEFRAMES - All timeframes
@@ -48,12 +49,11 @@ FOREX_TICKERS = [
     "NZDCAD=X", "NZDCHF=X",
 ]
 
-# 🔥 COMMODITIES - Fixed (Zinc removed)
+# 🔥 COMMODITIES
 COMMODITY_TICKERS = [
-    "GC=F",    # Gold (XAUUSD) ✅
-    "SI=F",    # Silver (XAGUSD) ✅
-    "ALI=F",   # Aluminium ✅
-    # "ZNC=F",   # ❌ Zinc - NOT AVAILABLE on yfinance
+    "GC=F",    # Gold (XAUUSD)
+    "SI=F",    # Silver (XAGUSD)
+    "ALI=F",   # Aluminium
 ]
 
 # 🔥 CRYPTO - Only BTCUSD
@@ -61,8 +61,18 @@ CRYPTO_TICKERS = [
     "BTC-USD",  # Bitcoin
 ]
 
+# 🔥 INDICES
+INDICES_TICKERS = [
+    "^GSPC",    # S&P 500 (SP500)
+    "^DJI",     # US30 (Dow Jones)
+    "^IXIC",    # US100 (NASDAQ)
+    "^RUT",     # Russell 2000
+    "^GDAXI",   # GER40 (DAX)
+    "^N225",    # JPN225 (Nikkei 225)
+]
+
 # 🔥 COMBINE ALL
-TICKERS = FOREX_TICKERS + COMMODITY_TICKERS + CRYPTO_TICKERS
+TICKERS = FOREX_TICKERS + COMMODITY_TICKERS + CRYPTO_TICKERS + INDICES_TICKERS
 
 YF_INTERVAL_MAP = {
     "5m": "5m", "15m": "15m", "30m": "30m", "45m": "30m",
@@ -159,12 +169,13 @@ def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
 
 def main():
     logger.info("=" * 60)
-    logger.info("💱 FOREX + COMMODITY + CRYPTO SCANNER STARTED")
+    logger.info("💱 FOREX + COMMODITY + CRYPTO + INDICES SCANNER STARTED")
     logger.info(f"📊 Total Symbols: {len(TICKERS)}")
     logger.info(f"📊 Total Timeframes: {len(INTERVALS)}")
     logger.info(f"   • Forex: {len(FOREX_TICKERS)}")
     logger.info(f"   • Commodity: {len(COMMODITY_TICKERS)}")
     logger.info(f"   • Crypto: {len(CRYPTO_TICKERS)}")
+    logger.info(f"   • Indices: {len(INDICES_TICKERS)}")
     logger.info("=" * 60)
     
     if not BOT_TOKEN or not CHAT_ID:
@@ -227,7 +238,7 @@ def main():
 
     save_state(sent_keys)
     
-    summary = f"""💱 FOREX + COMMODITY + CRYPTO SCAN COMPLETE
+    summary = f"""💱 FOREX + COMMODITY + CRYPTO + INDICES SCAN COMPLETE
   • Symbols: {len(TICKERS)}
   • Timeframes: {len(INTERVALS)}
   • Zones found: {total_zones}
@@ -235,7 +246,7 @@ def main():
   • ⏱️ {dt.datetime.now().strftime('%d-%b %H:%M:%S')}"""
     send_telegram_message(BOT_TOKEN, CHAT_ID, summary)
     
-    logger.info("📊 FOREX + COMMODITY + CRYPTO SCAN COMPLETE")
+    logger.info("📊 FOREX + COMMODITY + CRYPTO + INDICES SCAN COMPLETE")
 
 
 if __name__ == "__main__":
