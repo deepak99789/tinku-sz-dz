@@ -1,0 +1,33 @@
+name: Zone Scanner - US (US100)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install pandas numpy yfinance requests matplotlib
+      - name: Run US Scanner
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID_US: ${{ secrets.TELEGRAM_CHAT_ID_US }}
+        run: python alert_bot_us.py
+      - name: Save state
+        run: |
+          git config user.name "zone-scanner-bot"
+          git config user.email "actions@github.com"
+          git add alerted_state_us.json
+          git diff --cached --quiet || git commit -m "Update US state [skip ci]" && git push
