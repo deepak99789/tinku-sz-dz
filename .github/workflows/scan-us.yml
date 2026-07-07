@@ -14,20 +14,35 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Install dependencies
         run: pip install pandas numpy yfinance requests matplotlib
+
       - name: Run US Scanner
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID_US: ${{ secrets.TELEGRAM_CHAT_ID_US }}
         run: python alert_bot_us.py
+
       - name: Save state
         run: |
           git config user.name "zone-scanner-bot"
           git config user.email "actions@github.com"
-          git add alerted_state_us.json
-          git diff --cached --quiet || git commit -m "Update US state [skip ci]" && git push
+          
+          git pull origin main --rebase || echo "⚠️ Pull failed, continuing"
+          
+          git add alerted_state_us.json -f
+          
+          if git diff --cached --quiet; then
+            echo "📂 No state changes to commit"
+          else
+            git commit -m "Update US state [skip ci]"
+            git pull origin main --rebase || echo "⚠️ Pull failed"
+            git push origin main || echo "⚠️ Push failed"
+            echo "✅ State updated and pushed"
+          fi
