@@ -310,7 +310,7 @@ def main():
   • Zones found: {total_zones}
   • New alerts: {new_count}
   • ⏱️ {dt.datetime.now().strftime('%d-%b %H:%M:%S')}"""
-    send_telegram_message(BOT_TOKEN, CHAT_ID, summary)
+    
     
     logger.info("📊 NASDAQ 100 SCAN COMPLETE")
 
