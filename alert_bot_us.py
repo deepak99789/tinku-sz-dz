@@ -1,6 +1,7 @@
 """
 alert_bot_us.py - 🇺🇸 US100 Stocks 24x7 Alert Bot
 Timeframes: 5m, 15m, 30m, 75m, 125m, 2h, Daily, Weekly
+CLEANED - Removed all delisted/not found symbols
 """
 
 import os
@@ -18,39 +19,39 @@ from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
 
 # ==========================================================================
-# ⚙️ CONFIG - US100 STOCKS (CLEANED - No Delisted Symbols)
+# ⚙️ CONFIG - US100 STOCKS (CLEANED)
 # ==========================================================================
 
 INTERVALS = [
     "5m", "15m", "30m", "75m", "125m", "2h", "1d", "1wk"
 ]
 
-# 🔥 US100 STOCKS - CLEANED (Removed: SQ, PXD, DISH, ATVI, TWTR, FB, VXX, etc.)
+# 🔥 US100 STOCKS - CLEANED (Removed: ANSS, DFS, WBA, MRO, CTRA, HES)
 TICKERS = [
     # ===== TECHNOLOGY =====
     "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
     "NFLX", "ADBE", "CRM", "ORCL", "IBM", "CSCO", "INTC",
     "AMD", "QCOM", "TXN", "AVGO", "MU", "ARM",
-    "PLTR", "SNOW", "CRWD", "ZS", "PANW", "FTNT", "OKTA",
+    "PLTR", "SNOW", "CRWD", "PANW", "FTNT", "OKTA",
     "DDOG", "MDB", "TEAM", "NET", "HUBS", "NOW",
-    "ADSK", "CDNS", "SNPS", "NXPI", "MCHP", "ADI", "SWKS",
-    "MRVL", "ANSS", "ROP", "TYL", "PTC", "VRSN", "AKAM",
+    "ADSK", "CDNS", "SNPS", "NXPI", "MCHP", "ADI",
+    "MRVL", "ROP", "TYL", "PTC", "VRSN", "AKAM",
     "ANET", "DELL", "HPQ", "HPE", "NTAP", "STX", "WDC",
     "SMCI", "ON", "TER", "ENTG", "LRCX", "KLAC", "AMAT",
     
     # ===== FINANCE =====
-    "JPM", "BAC", "WFC", "C", "GS", "MS", "V", "MA", "PYPL",
-    "COIN", "BLK", "AXP", "USB", "PNC", "TFC",
-    "SCHW", "AMTD", "FIS", "FISV", "GPN", "JKHY",
+    "JPM", "BAC", "WFC", "C", "GS", "MS", 
+    "V", "MA", "PYPL", "COIN", "BLK", "AXP",
+    "SCHW", "FIS", "FISV", "GPN", "JKHY",
     "MCO", "SPGI", "ICE", "NDAQ", "CME", "CBOE",
-    "SYF", "DFS", "ALLY", "SOFI", "HOOD",
+    "SYF", "ALLY", "SOFI", "HOOD",
     
     # ===== HEALTHCARE =====
     "JNJ", "PFE", "MRK", "UNH", "CVS", "ABBV", "LLY",
     "GILD", "BIIB", "AMGN", "VRTX", "REGN", "MRNA",
     "ISRG", "DHR", "TMO", "ABT", "MDT", "SYK", "BSX",
     "ZTS", "EW", "IDXX", "DXCM", "ALGN", "HUM", "CI",
-    "ELV", "CNC", "MOH", "WBA", "COR", "CAH",
+    "ELV", "CNC", "MOH", "COR", "CAH",
     "BHC", "NBIX", "INCY", "UTHR", "ALNY",
     
     # ===== CONSUMER =====
@@ -66,20 +67,19 @@ TICKERS = [
     "XOM", "CVX", "COP", "SLB", "EOG", "OXY", "PSX", "VLO",
     "MPC", "DVN", "HAL", "BKR", "FTI", "NOV",
     "KMI", "OKE", "WMB", "LNG", "EQT",
-    "FANG", "MRO", "CTRA", "HES", "APA",
+    "FANG", "APA",
     
     # ===== INDUSTRIAL =====
     "GE", "CAT", "BA", "RTX", "LMT", "HON", "UNP", "DHR",
     "DE", "CARR", "OTIS", "CTAS", "MMM", "EMR", "ETN",
     "ITW", "CMI", "PH", "AME", "ROK", "IR", "URI",
     "PCAR", "FAST", "GWW", "ODFL", "XPO",
-    "FDX", "UPS", "JBHT", "CHRW",
     "GD", "NOC", "LHX", "HII",
     
     # ===== COMMUNICATION =====
     "T", "VZ", "TMUS", "CMCSA", "CHTR",
     "EA", "TTWO", "SNAP", "PINS", "MTCH",
-    "ROKU", "ZG", "GOOGL", "META", "NFLX",
+    "ROKU", "ZG",
     
     # ===== REAL ESTATE =====
     "AMT", "PLD", "CCI", "EQIX", "SPG", "PSA", "DLR",
@@ -94,7 +94,6 @@ TICKERS = [
     # ===== ETFs & INDEXES =====
     "SPY", "QQQ", "DIA", "IWM", "VOO", "VTI",
     "XLK", "XLF", "XLV", "XLE", "XLI", "XLY",
-    "XLP", "XLU", "XLRE", "XLC", "XLB",
 ]
 
 YF_INTERVAL_MAP = {
