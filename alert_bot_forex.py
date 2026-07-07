@@ -1,7 +1,7 @@
 """
 alert_bot_forex.py - 💱 Forex + Commodity + Crypto 24x7 Alert Bot
 Forex: Major + Minor + Cross
-Commodity: XAUUSD, XAGUSD, Aluminium, Zinc
+Commodity: XAUUSD, XAGUSD, Aluminium (Zinc removed - not available on yfinance)
 Crypto: BTCUSD
 Timeframes: 5m, 15m, 30m, 45m, 75m, 125m, 1h, 2h, 4h, 5h, 6h, 8h, 10h, 12h, 16h, Daily, Weekly
 """
@@ -48,13 +48,12 @@ FOREX_TICKERS = [
     "NZDCAD=X", "NZDCHF=X",
 ]
 
-# 🔥 COMMODITIES - XAUUSD, XAGUSD, Aluminium, Zinc
-# Note: yfinance uses different symbols for commodities
+# 🔥 COMMODITIES - Fixed (Zinc removed)
 COMMODITY_TICKERS = [
-    "GC=F",    # Gold (XAUUSD)
-    "SI=F",    # Silver (XAGUSD)
-    "ALI=F",   # Aluminium (if available)
-    "ZNC=F",   # Zinc (if available)
+    "GC=F",    # Gold (XAUUSD) ✅
+    "SI=F",    # Silver (XAGUSD) ✅
+    "ALI=F",   # Aluminium ✅
+    # "ZNC=F",   # ❌ Zinc - NOT AVAILABLE on yfinance
 ]
 
 # 🔥 CRYPTO - Only BTCUSD
