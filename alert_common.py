@@ -1,9 +1,5 @@
 """
 alert_common.py - Shared alert text + chart builder
-
-Ye module Streamlit app (app.py) aur 24x7 background bot (alert_bot.py)
-DONO use karte hain, taaki Telegram par jaane wala alert ka design hamesha
-same/consistent rahe - ek jagah update karo, dono jagah reflect ho jayega.
 """
 
 import io
@@ -17,34 +13,16 @@ ALERT_ICONS = {
     "entered": "🔵",
     "sl_hit": "🚨",
     "tp_hit": "🎯",
-    "pre_alert": "🔔",
-}
-
-# Har event type zone ki KIS status-stage se related hai - "Fresh" (active),
-# "SL" ya "Target". app.py (manual) aur alert_bot.py (24x7 background bot)
-# DONO isi mapping ko use karke apna "sirf fresh zone ka alert bhejo" (ya
-# sirf SL/Target) wala filter apply karte hain - taaki dono jagah same rule
-# rahe aur ek jagah update karne se dusri jagah bhi automatically reflect ho.
-EVENT_STATUS_MAP = {
-    "zone_found": "active",
-    "pre_alert": "active",
-    "entered": "active",
-    "sl_hit": "sl",
-    "tp_hit": "tp",
 }
 
 
 def alert_key(tkr: str, itv: str, event: dict) -> str:
-    """Unique key per (ticker, interval, event type, zone, bar) - isse same
-    alert dobara (duplicate) nahi bheja/dikhaya jayega."""
     z = event["zone"]
     return f"{tkr}|{itv}|{event['type']}|{z.pattern_name}|{event['bar']}|{round(z.proximal, 4)}"
 
 
 def build_alert_text(tkr: str, itv: str, event: dict, df, rr_target: float) -> str:
-    """Har alert type (zone_found / entered / sl_hit / tp_hit) me same
-    detailed info deta hai: symbol, timeframe, pattern, type, proximal,
-    distal, leg-out formation date, base candle count, leg-out candle count."""
+    """5 arguments - NO data_source parameter"""
     z = event["zone"]
     zone_type = "Supply 🔴" if z.is_supply else "Demand 🟢"
 
@@ -79,9 +57,6 @@ def build_alert_text(tkr: str, itv: str, event: dict, df, rr_target: float) -> s
 
 
 def render_zone_chart(df, event: dict, tkr: str, itv: str):
-    """Zone ke around candlestick chart PNG (bytes) banata hai, jo Telegram
-    photo ke saath bheja jata hai. Kuch bhi galat ho to None return karta
-    hai (caller text-only alert par fallback kar lega)."""
     try:
         z = event["zone"]
         lo = max(0, z.start_bar - 10)
@@ -111,7 +86,7 @@ def render_zone_chart(df, event: dict, tkr: str, itv: str):
             ax.axhline(z.target, color="blue", linestyle="--", linewidth=1, label="Target")
 
         ax.set_xlim(-1, len(sub))
-        if itv in ("1d", "1wk"):
+        if itv in ("1d", "5d", "1wk", "1mo", "3mo"):
             labels = [ts.strftime("%d-%b-%y") for ts in sub.index]
         else:
             labels = [ts.strftime("%d-%b %H:%M") for ts in sub.index]
