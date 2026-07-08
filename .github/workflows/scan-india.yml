@@ -1,4 +1,4 @@
-name: Zone Scanner - India (NIFTY 200)
+name: Zone Scanner - India (NIFTY 500)
 
 on:
   schedule:
@@ -34,16 +34,14 @@ jobs:
           git config user.name "zone-scanner-bot"
           git config user.email "actions@github.com"
           
-          # 🔥 Force pull before adding
           git pull origin main --rebase || echo "⚠️ Pull failed, continuing"
           
-          git add alerted_state_india.json -f
+          git add -f alert_state_india.json
           
           if git diff --cached --quiet; then
             echo "📂 No state changes to commit"
           else
             git commit -m "Update India state [skip ci]"
-            git pull origin main --rebase || echo "⚠️ Pull failed"
-            git push origin main || echo "⚠️ Push failed"
+            git push origin main --force || echo "⚠️ Push failed"
             echo "✅ State updated and pushed"
           fi
