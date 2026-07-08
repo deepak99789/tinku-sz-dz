@@ -1,6 +1,6 @@
 """
 alert_bot_forex.py - 💱 Forex + Commodity + Crypto + Indices 24x7 Alert Bot
-REAL DATA - All yfinance supported timeframes
+REAL DATA - Supported yfinance timeframes
 """
 
 import os
@@ -18,11 +18,11 @@ from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
 
 # ==========================================================================
-# ⚙️ CONFIG - ALL YFINANCE SUPPORTED TIMEFRAMES (REAL DATA)
+# ⚙️ CONFIG - SUPPORTED TIMEFRAMES (REAL DATA)
 # ==========================================================================
 
 INTERVALS = [
-    "1m", "2m", "5m", "15m", "30m", "60m", "90m",
+    "5m", "15m", "30m", "60m", "90m",
     "1d", "5d", "1wk", "1mo", "3mo"
 ]
 
@@ -44,9 +44,9 @@ INDICES_TICKERS = ["^GSPC", "^DJI", "^IXIC", "^RUT", "^GDAXI", "^N225"]
 TICKERS = FOREX_TICKERS + COMMODITY_TICKERS + CRYPTO_TICKERS + INDICES_TICKERS
 
 YF_INTERVAL_MAP = {
-    "1m": "1m", "2m": "2m", "5m": "5m", "15m": "15m", "30m": "30m",
-    "60m": "60m", "90m": "90m", "1d": "1d", "5d": "5d",
-    "1wk": "1wk", "1mo": "1mo", "3mo": "3mo"
+    "5m": "5m", "15m": "15m", "30m": "30m",
+    "60m": "60m", "90m": "90m",
+    "1d": "1d", "5d": "5d", "1wk": "1wk", "1mo": "1mo", "3mo": "3mo"
 }
 
 PERIOD = "1mo"
@@ -181,7 +181,7 @@ def main():
                     continue
                 sent_keys.add(key)
                 last_alert_time[key] = time.time()
-                txt = build_alert_text(tkr, itv, e, df, RR_TARGET, "yfinance_real")
+                txt = build_alert_text(tkr, itv, e, df, RR_TARGET)
                 chart_bytes = render_zone_chart(df, e, tkr, itv)
                 pending_alerts.append({
                     "ticker": tkr, "interval": itv, "type": e["type"],
