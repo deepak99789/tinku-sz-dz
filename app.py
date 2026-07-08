@@ -28,25 +28,27 @@ from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_I
 st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 
 # ==========================================================================
-# 🔥 ALL YFINANCE SUPPORTED TIMEFRAMES (REAL DATA)
+# 🔥 SUPPORTED YFINANCE TIMEFRAMES (REAL DATA)
 # ==========================================================================
 
 INTERVAL_OPTIONS = [
-    "1m", "2m", "5m", "15m", "30m", "60m", "90m",
+    "5m", "15m", "30m", "60m", "90m",
     "1d", "5d", "1wk", "1mo", "3mo"
 ]
 
 PERIOD_OPTIONS = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
 YF_INTERVAL_MAP_APP = {
-    "1m": "1m", "2m": "2m", "5m": "5m", "15m": "15m", "30m": "30m",
-    "60m": "60m", "90m": "90m", "1d": "1d", "5d": "5d",
+    "5m": "5m", "15m": "15m", "30m": "30m",
+    "60m": "60m", "90m": "90m",
+    "1d": "1d", "5d": "5d",
     "1wk": "1wk", "1mo": "1mo", "3mo": "3mo"
 }
 
 PERIOD_BY_INTERVAL = {
-    "1m": "1mo", "2m": "1mo", "5m": "1mo", "15m": "1mo", "30m": "1mo",
-    "60m": "1mo", "90m": "1mo", "1d": "5y", "5d": "5y",
+    "5m": "1mo", "15m": "1mo", "30m": "1mo",
+    "60m": "1mo", "90m": "1mo",
+    "1d": "5y", "5d": "5y",
     "1wk": "10y", "1mo": "10y", "3mo": "10y",
 }
 
@@ -55,10 +57,6 @@ STATUS_LABELS = {
     "SL Zone": "sl",
     "Target Zone": "tp",
 }
-
-# ==========================================================================
-# 🔥 MARKET PRESETS - NIFTY 500 ADDED
-# ==========================================================================
 
 MARKET_PRESETS = {
     "🇮🇳 NIFTY 500": {
@@ -151,7 +149,7 @@ st.title("📊 Demand & Supply Dashboard")
 st.caption("Python/Streamlit port of the Pine Script RBD / DBD / DBR / RBR zone-detection indicator")
 
 # ==========================================================================
-# ⚙️ SETTINGS - centered in the main page (no sidebar)
+# ⚙️ SETTINGS
 # ==========================================================================
 st.markdown("## ⚙️ Settings")
 settings_box = st.container(border=True)
@@ -567,23 +565,4 @@ if "combo_results" in st.session_state:
                     "Interval": itv,
                     "Pattern": z.pattern_name,
                     "Type": "Supply" if z.is_supply else "Demand",
-                    "Base Count": z.base_count,
-                    "Legout Count": z.legout_count,
-                    "Start": normalize_ts(d.index[z.start_bar]),
-                    "Proximal": round(z.proximal, 4),
-                    "Distal": round(z.distal, 4),
-                    "Target": round(z.target, 4),
-                    "Status": z.status.upper(),
-                })
-        if rows:
-            zone_df = pd.DataFrame(rows)
-            zone_df["Start"] = pd.to_datetime(zone_df["Start"], errors="coerce")
-            st.dataframe(
-                zone_df.sort_values("Start", ascending=False),
-                use_container_width=True, hide_index=True,
-            )
-        else:
-            st.info("Selected filter/timeframe/ticker combination me koi zone nahi mila.")
-
-else:
-    st.info("Upar settings choose karke **🔄 Fetch & Scan** dabayein.")
+                   
