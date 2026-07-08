@@ -32,16 +32,24 @@ st.set_page_config(
 )
 
 # ==========================================================================
-# 🔥 CUSTOM CSS - CENTRE LAYOUT
+# 🔥 CUSTOM CSS - FULL CENTRE LAYOUT (NO SIDEBAR)
 # ==========================================================================
 
 st.markdown("""
 <style>
+    /* Hide sidebar completely */
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+    [data-testid="stSidebarNav"] {
+        display: none;
+    }
+    
     /* Main container - centre */
     .main-container {
         max-width: 1400px;
         margin: 0 auto;
-        padding: 0 1rem;
+        padding: 0 2rem;
     }
     
     /* Main title */
@@ -70,15 +78,23 @@ st.markdown("""
         letter-spacing: 1px;
     }
     
-    /* Centre all content */
-    .stApp {
-        max-width: 1400px;
-        margin: 0 auto;
+    /* Settings section - centre */
+    .settings-section {
+        background: linear-gradient(145deg, #1a1a2e, #0f0f23);
+        padding: 1.5rem 2rem;
+        border-radius: 15px;
+        border: 1px solid #2a2a4a;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
-    
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
+    .settings-title {
+        color: #FFD700;
+        font-size: 1.3rem;
+        font-weight: 600;
+        text-align: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #FFD700;
     }
     
     /* Card style */
@@ -136,21 +152,6 @@ st.markdown("""
         margin-top: 0.3rem;
     }
     
-    /* Sidebar - centre */
-    .css-1d391kg, .css-1lcbmhc {
-        background: linear-gradient(180deg, #0a0a1a, #1a1a2e);
-    }
-    .sidebar-title {
-        color: #FFD700;
-        font-size: 1.4rem;
-        font-weight: 700;
-        text-align: center;
-        padding: 0.8rem 0;
-        border-bottom: 2px solid #FFD700;
-        margin-bottom: 1.2rem;
-        letter-spacing: 1px;
-    }
-    
     /* Buttons */
     .stButton > button {
         width: 100%;
@@ -194,14 +195,18 @@ st.markdown("""
         color: #FF4444;
     }
     
-    /* Select boxes centre */
+    /* Centre all widgets */
     .stSelectbox, .stMultiselect, .stNumberInput, .stCheckbox {
         width: 100%;
     }
     
-    /* Centre all widgets */
     .stSelectbox > div, .stMultiselect > div {
         width: 100%;
+    }
+    
+    /* Row spacing */
+    .row-widget {
+        margin-bottom: 0.5rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -415,21 +420,24 @@ STATUS_LABELS = {
 }
 
 # ==========================================================================
-# 🔥 NEW LAYOUT - TITLE
+# 🔥 TITLE
 # ==========================================================================
 
 st.markdown('<div class="main-title">📊 DEEPAK <span>SUPPLY DEMAND</span> STRATEGY<small>Professional Zone Detection & Alert System</small></div>', unsafe_allow_html=True)
 
 # ==========================================================================
-# 🔥 SIDEBAR - CENTRE LAYOUT
+# 🔥 SETTINGS - FULL CENTRE
 # ==========================================================================
 
-with st.sidebar:
-    st.markdown('<div class="sidebar-title">⚙️ SETTINGS</div>', unsafe_allow_html=True)
-    
+st.markdown('<div class="settings-section">', unsafe_allow_html=True)
+st.markdown('<div class="settings-title">⚙️ SETTINGS</div>', unsafe_allow_html=True)
+
+# Row 1: Market + Tickers
+col1, col2 = st.columns([1, 2])
+with col1:
     market = st.selectbox("📊 Market Type", list(MARKET_PRESETS.keys()))
     preset = MARKET_PRESETS[market]
-    
+with col2:
     select_all_tickers = st.checkbox("✅ Select ALL tickers", value=False)
     tickers_selected = st.multiselect(
         "📌 Ticker Symbol(s)",
@@ -438,14 +446,22 @@ with st.sidebar:
         disabled=select_all_tickers,
         help=preset["suffix_hint"],
     )
-    
+
+if select_all_tickers:
+    final_tickers = list(preset["tickers"])
+else:
+    final_tickers = list(dict.fromkeys(tickers_selected))
+
+# Row 2: Status + Timeframes
+col1, col2 = st.columns(2)
+with col1:
     status_choice = st.multiselect(
         "🎯 Zone Status Filter",
         options=["All", "Fresh Zone", "SL Zone", "Target Zone"],
         default=["All"],
         help="Fresh = abhi tak SL/Target nahi laga. SL Zone = stoploss hit. Target Zone = target hit.",
     )
-    
+with col2:
     select_all_intervals = st.checkbox("✅ Select ALL timeframes", value=False)
     intervals_selected = st.multiselect(
         "⏰ Timeframe(s)",
@@ -454,48 +470,79 @@ with st.sidebar:
         disabled=select_all_intervals,
     )
 
-    if select_all_tickers:
-        final_tickers = list(preset["tickers"])
-    else:
-        final_tickers = list(dict.fromkeys(tickers_selected))
-    final_intervals = INTERVAL_OPTIONS if select_all_intervals else intervals_selected
+final_intervals = INTERVAL_OPTIONS if select_all_intervals else intervals_selected
 
-    st.markdown("---")
-    
-    period = st.selectbox("📅 History Period", PERIOD_OPTIONS, index=4)
+st.markdown("---")
+
+# Row 3: Strategy Parameters
+st.markdown("### 📐 Strategy Parameters")
+col1, col2, col3, col4, col5, col6 = st.columns(6)
+with col1:
+    period = st.selectbox("📅 History", PERIOD_OPTIONS, index=4)
+with col2:
     atr_length = st.number_input("📏 ATR Length", min_value=1, value=14)
+with col3:
     atr_multiplier = st.number_input("📐 ATR Multiplier", min_value=0.0, value=0.35, step=0.05)
+with col4:
     rr_target = st.number_input("🎯 Risk:Reward", min_value=0.1, value=3.0, step=0.1)
-    pre_entry_mult = st.number_input("🔔 Alert Dist (x ATR)", min_value=0.0, value=1.5, step=0.1)
-    base_count_filter = st.selectbox("📊 Base Candle Count", ["All", "1", "2", "3"], index=0)
+with col5:
+    pre_entry_mult = st.number_input("🔔 Alert Dist", min_value=0.0, value=1.5, step=0.1)
+with col6:
+    base_count_filter = st.selectbox("📊 Base Count", ["All", "1", "2", "3"], index=0)
 
-    st.markdown("---")
-    
-    telegram_on = st.checkbox("📨 Enable Telegram alerts", value=False)
+st.markdown("---")
+
+# Row 4: Telegram Settings
+st.markdown("### 📨 Telegram Alerts")
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    telegram_on = st.checkbox("📨 Enable Telegram", value=False)
+with col2:
     if telegram_on:
         bot_token = st.text_input("🤖 Bot Token", type="password")
-        chat_id = st.text_input("💬 Chat ID")
-        only_latest = st.checkbox("📌 Only latest bar", value=True)
     else:
         bot_token = ""
+        st.text_input("🤖 Bot Token", value="", disabled=True)
+with col3:
+    if telegram_on:
+        chat_id = st.text_input("💬 Chat ID")
+    else:
         chat_id = ""
+        st.text_input("💬 Chat ID", value="", disabled=True)
+with col4:
+    if telegram_on:
+        only_latest = st.checkbox("📌 Only latest bar", value=True)
+    else:
         only_latest = True
+        st.checkbox("📌 Only latest bar", value=True, disabled=True)
 
-    st.markdown("---")
-    
+st.markdown("---")
+
+# Row 5: Auto-Scan & Alerts
+st.markdown("### 🔔 Alert System")
+col1, col2, col3, col4 = st.columns(4)
+with col1:
     auto_scan_on = st.checkbox("♻️ Auto-Scan", value=False)
+with col2:
     if auto_scan_on:
         autoscan_interval = st.number_input("⏱️ Interval (sec)", min_value=15, value=60, step=5)
     else:
         autoscan_interval = 60
-    
-    sound_on = st.checkbox("🔊 Sound on new alert", value=True)
-    toast_on = st.checkbox("📳 In-app popup (toast)", value=True)
+        st.number_input("⏱️ Interval (sec)", min_value=15, value=60, step=5, disabled=True)
+with col3:
+    sound_on = st.checkbox("🔊 Sound", value=True)
+with col4:
+    toast_on = st.checkbox("📳 Toast", value=True)
 
-    if auto_scan_on and not AUTOREFRESH_AVAILABLE:
-        st.warning("⚠️ `streamlit-autorefresh` package chahiye.")
+if auto_scan_on and not AUTOREFRESH_AVAILABLE:
+    st.warning("⚠️ `streamlit-autorefresh` package chahiye.")
 
+# Run Button
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
     run_btn = st.button("🔄 Fetch & Scan", type="primary", use_container_width=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 if auto_scan_on and AUTOREFRESH_AVAILABLE:
     st_autorefresh(interval=int(autoscan_interval * 1000), key="autoscan_timer")
@@ -687,33 +734,29 @@ if "combo_results" in st.session_state:
     allowed_status = resolve_status_filter(status_choice)
 
     # Status Bar - Centre
-    st.markdown('<div class="metric-grid">', unsafe_allow_html=True)
-    
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">🕒</div>
-            <div class="metric-label">{st.session_state.get('last_scan_time', '-')}</div>
+        <div style="background:#1a1a2e;padding:1rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:1.8rem;color:#FFD700;font-weight:700;">🕒</div>
+            <div style="color:#aaa;font-size:0.9rem;">{st.session_state.get('last_scan_time', '-')}</div>
         </div>
         """, unsafe_allow_html=True)
     with col2:
         scan_status = "🟢 Active" if auto_scan_on else "🔴 Manual"
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{scan_status}</div>
-            <div class="metric-label">Scan Mode</div>
+        <div style="background:#1a1a2e;padding:1rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:1.8rem;color:#FFD700;font-weight:700;">{scan_status}</div>
+            <div style="color:#aaa;font-size:0.9rem;">Scan Mode</div>
         </div>
         """, unsafe_allow_html=True)
     with col3:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">📊 {len(combo_results)}</div>
-            <div class="metric-label">Total Combos</div>
+        <div style="background:#1a1a2e;padding:1rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:1.8rem;color:#FFD700;font-weight:700;">📊 {len(combo_results)}</div>
+            <div style="color:#aaa;font-size:0.9rem;">Total Combos</div>
         </div>
         """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # Live Alerts
     with st.expander(f"🔔 Live Alerts ({len(st.session_state['alert_log'])})", expanded=bool(st.session_state["alert_log"])):
@@ -732,7 +775,7 @@ if "combo_results" in st.session_state:
         f"{t} [{i} · {combo_results[(t, i)]['period_used']}]" for t, i in combo_keys
     ]
 
-    # Summary Metrics - Centre Grid
+    # Summary Metrics - Centre
     total_zones_all = 0
     total_fresh_all = 0
     total_sl_all = 0
@@ -748,39 +791,36 @@ if "combo_results" in st.session_state:
                 total_tp_all += 1
 
     st.markdown("---")
-    st.markdown('<div class="metric-grid">', unsafe_allow_html=True)
     
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{total_zones_all}</div>
-            <div class="metric-label">📊 Total Zones</div>
+        <div style="background:#1a1a2e;padding:1rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:2rem;color:#FFD700;font-weight:700;">{total_zones_all}</div>
+            <div style="color:#aaa;font-size:0.85rem;">📊 Total Zones</div>
         </div>
         """, unsafe_allow_html=True)
     with c2:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color:#FFD700;">🟡 {total_fresh_all}</div>
-            <div class="metric-label">Fresh Zones</div>
+        <div style="background:#1a1a2e;padding:1rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:2rem;color:#FFD700;font-weight:700;">🟡 {total_fresh_all}</div>
+            <div style="color:#aaa;font-size:0.85rem;">Fresh Zones</div>
         </div>
         """, unsafe_allow_html=True)
     with c3:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color:#FF4444;">🔴 {total_sl_all}</div>
-            <div class="metric-label">SL Hit</div>
+        <div style="background:#1a1a2e;padding:1rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:2rem;color:#FF4444;font-weight:700;">🔴 {total_sl_all}</div>
+            <div style="color:#aaa;font-size:0.85rem;">SL Hit</div>
         </div>
         """, unsafe_allow_html=True)
     with c4:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color:#00FF00;">🟢 {total_tp_all}</div>
-            <div class="metric-label">Target Hit</div>
+        <div style="background:#1a1a2e;padding:1rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:2rem;color:#00FF00;font-weight:700;">🟢 {total_tp_all}</div>
+            <div style="color:#aaa;font-size:0.85rem;">Target Hit</div>
         </div>
         """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # Chart Section
     st.markdown("---")
@@ -793,41 +833,37 @@ if "combo_results" in st.session_state:
     zones_filtered = [z for z in result.all_zones if z.status in allowed_status]
 
     # Stats for selected
-    st.markdown('<div class="metric-grid">', unsafe_allow_html=True)
-    
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">🎯 {result.sl_count}</div>
-            <div class="metric-label">SL Hits</div>
+        <div style="background:#1a1a2e;padding:0.8rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:1.5rem;color:#FFD700;font-weight:700;">🎯 {result.sl_count}</div>
+            <div style="color:#aaa;font-size:0.8rem;">SL Hits</div>
         </div>
         """, unsafe_allow_html=True)
     with col2:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">✅ {result.tp_count}</div>
-            <div class="metric-label">TP Hits</div>
+        <div style="background:#1a1a2e;padding:0.8rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:1.5rem;color:#00FF00;font-weight:700;">✅ {result.tp_count}</div>
+            <div style="color:#aaa;font-size:0.8rem;">TP Hits</div>
         </div>
         """, unsafe_allow_html=True)
     with col3:
         total = result.sl_count + result.tp_count
         winrate = (result.tp_count / total * 100) if total else 0
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color:#00FF88;">📈 {winrate:.1f}%</div>
-            <div class="metric-label">Win Rate</div>
+        <div style="background:#1a1a2e;padding:0.8rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:1.5rem;color:#00FF88;font-weight:700;">📈 {winrate:.1f}%</div>
+            <div style="color:#aaa;font-size:0.8rem;">Win Rate</div>
         </div>
         """, unsafe_allow_html=True)
     with col4:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">📊 {len(zones_filtered)}/{len(result.all_zones)}</div>
-            <div class="metric-label">Zones Shown</div>
+        <div style="background:#1a1a2e;padding:0.8rem;border-radius:10px;text-align:center;border:1px solid #2a2a4a;">
+            <div style="font-size:1.5rem;color:#FFD700;font-weight:700;">📊 {len(zones_filtered)}/{len(result.all_zones)}</div>
+            <div style="color:#aaa;font-size:0.8rem;">Zones Shown</div>
         </div>
         """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # Chart
     fig = go.Figure()
@@ -918,4 +954,4 @@ if "combo_results" in st.session_state:
     """, unsafe_allow_html=True)
 
 else:
-    st.info("⚙️ Left sidebar me settings choose karke **🔄 Fetch & Scan** dabayein.")
+    st.info("⚙️ Upar settings choose karke **🔄 Fetch & Scan** dabayein.")
