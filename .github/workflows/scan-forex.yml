@@ -34,7 +34,15 @@ jobs:
           git config user.name "zone-scanner-bot"
           git config user.email "actions@github.com"
           
-          git add -f alert_state_forex.json
+          # 🔥 Check if state file exists
+          if [ -f "alert_state_forex.json" ]; then
+            echo "📂 State file found, adding..."
+            git add -f alert_state_forex.json
+          else
+            echo "⚠️ State file not found, creating empty..."
+            echo "[]" > alert_state_forex.json
+            git add -f alert_state_forex.json
+          fi
           
           if git diff --cached --quiet; then
             echo "📂 No state changes to commit"
