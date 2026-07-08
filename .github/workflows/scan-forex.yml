@@ -34,14 +34,13 @@ jobs:
           git config user.name "zone-scanner-bot"
           git config user.email "actions@github.com"
           
-          git pull origin main --rebase || echo "⚠️ Pull failed, continuing"
-          
           git add -f alert_state_forex.json
           
           if git diff --cached --quiet; then
             echo "📂 No state changes to commit"
           else
             git commit -m "Update Forex state [skip ci]"
+            git pull origin main --rebase || echo "⚠️ Pull failed"
             git push origin main --force || echo "⚠️ Push failed"
             echo "✅ State updated and pushed"
           fi
