@@ -17,12 +17,13 @@ ALERT_ICONS = {
 
 
 def alert_key(tkr: str, itv: str, event: dict) -> str:
+    """Unique key per zone - NO bar_index (stable across runs)"""
     z = event["zone"]
-    return f"{tkr}|{itv}|{event['type']}|{z.pattern_name}|{event['bar']}|{round(z.proximal, 4)}"
+    # 🔥 bar_index hata diya - zone permanent rahega
+    return f"{tkr}|{itv}|{z.pattern_name}|{round(z.proximal, 4)}|{round(z.distal, 4)}"
 
 
 def build_alert_text(tkr: str, itv: str, event: dict, df, rr_target: float) -> str:
-    """5 arguments - NO data_source parameter"""
     z = event["zone"]
     zone_type = "Supply 🔴" if z.is_supply else "Demand 🟢"
 
