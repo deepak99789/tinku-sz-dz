@@ -565,4 +565,23 @@ if "combo_results" in st.session_state:
                     "Interval": itv,
                     "Pattern": z.pattern_name,
                     "Type": "Supply" if z.is_supply else "Demand",
-                   
+                    "Base Count": z.base_count,
+                    "Legout Count": z.legout_count,
+                    "Start": normalize_ts(d.index[z.start_bar]),
+                    "Proximal": round(z.proximal, 4),
+                    "Distal": round(z.distal, 4),
+                    "Target": round(z.target, 4),
+                    "Status": z.status.upper(),
+                })
+        if rows:
+            zone_df = pd.DataFrame(rows)
+            zone_df["Start"] = pd.to_datetime(zone_df["Start"], errors="coerce")
+            st.dataframe(
+                zone_df.sort_values("Start", ascending=False),
+                use_container_width=True, hide_index=True,
+            )
+        else:
+            st.info("Selected filter/timeframe/ticker combination me koi zone nahi mila.")
+
+else:
+    st.info("Upar settings choose karke **🔄 Fetch & Scan** dabayein.")
