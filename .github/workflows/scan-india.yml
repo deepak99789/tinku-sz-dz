@@ -34,14 +34,14 @@ jobs:
           git config user.name "zone-scanner-bot"
           git config user.email "actions@github.com"
           
-          git pull origin main --rebase || echo "⚠️ Pull failed, continuing"
-          
+          # 🔥 Force add state file
           git add -f alert_state_india.json
           
           if git diff --cached --quiet; then
             echo "📂 No state changes to commit"
           else
             git commit -m "Update India state [skip ci]"
+            git pull origin main --rebase || echo "⚠️ Pull failed"
             git push origin main --force || echo "⚠️ Push failed"
             echo "✅ State updated and pushed"
           fi
