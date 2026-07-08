@@ -32,113 +32,182 @@ st.set_page_config(
 )
 
 # ==========================================================================
-# 🔥 CUSTOM CSS - NEW LAYOUT
+# 🔥 CUSTOM CSS - CENTRE LAYOUT
 # ==========================================================================
 
 st.markdown("""
 <style>
+    /* Main container - centre */
+    .main-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 1rem;
+    }
+    
     /* Main title */
     .main-title {
-        font-size: 2.5rem;
+        font-size: 2.8rem;
         font-weight: 700;
         color: #FFD700;
         text-align: center;
-        padding: 1rem 0;
-        background: linear-gradient(90deg, #1a1a2e, #16213e, #0f3460);
-        border-radius: 10px;
+        padding: 1.2rem 0;
+        background: linear-gradient(135deg, #0a0a1a, #1a1a3e, #0a0a1a);
+        border-radius: 15px;
         margin-bottom: 1.5rem;
         border: 2px solid #FFD700;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
+        letter-spacing: 2px;
     }
     .main-title span {
-        color: #00FF00;
+        color: #00FF88;
+        text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
     }
+    .main-title small {
+        font-size: 0.8rem;
+        color: #888;
+        display: block;
+        margin-top: 0.3rem;
+        letter-spacing: 1px;
+    }
+    
+    /* Centre all content */
+    .stApp {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    
     /* Card style */
     .card {
-        background: #1e1e2f;
+        background: linear-gradient(145deg, #1a1a2e, #16213e);
         padding: 1.5rem;
-        border-radius: 10px;
-        border: 1px solid #333;
+        border-radius: 12px;
+        border: 1px solid #2a2a4a;
         margin-bottom: 1rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transition: all 0.3s;
+    }
+    .card:hover {
+        border-color: #FFD700;
+        box-shadow: 0 4px 25px rgba(255, 215, 0, 0.1);
     }
     .card-title {
         color: #FFD700;
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         font-weight: 600;
         margin-bottom: 0.5rem;
     }
-    /* Metric cards */
+    
+    /* Metric cards - centre */
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+        justify-content: center;
+    }
     .metric-card {
-        background: #1a1a2e;
-        padding: 1rem;
-        border-radius: 8px;
+        background: linear-gradient(145deg, #1a1a2e, #0f0f23);
+        padding: 1.2rem;
+        border-radius: 10px;
         text-align: center;
-        border: 1px solid #333;
+        border: 1px solid #2a2a4a;
         transition: all 0.3s;
+        min-width: 150px;
     }
     .metric-card:hover {
         border-color: #FFD700;
-        transform: scale(1.02);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(255, 215, 0, 0.1);
     }
     .metric-value {
         font-size: 2rem;
         font-weight: 700;
         color: #FFD700;
+        font-family: 'Courier New', monospace;
     }
     .metric-label {
         color: #aaa;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        margin-top: 0.3rem;
     }
-    /* Sidebar styling */
+    
+    /* Sidebar - centre */
+    .css-1d391kg, .css-1lcbmhc {
+        background: linear-gradient(180deg, #0a0a1a, #1a1a2e);
+    }
     .sidebar-title {
         color: #FFD700;
-        font-size: 1.3rem;
-        font-weight: 600;
-        padding: 0.5rem 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+        text-align: center;
+        padding: 0.8rem 0;
         border-bottom: 2px solid #FFD700;
-        margin-bottom: 1rem;
+        margin-bottom: 1.2rem;
+        letter-spacing: 1px;
     }
-    /* Status badge */
-    .badge-success {
-        background: #00FF00;
+    
+    /* Buttons */
+    .stButton > button {
+        width: 100%;
+        background: linear-gradient(135deg, #FFD700, #FFA500);
         color: #000;
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 600;
+        font-weight: 700;
+        font-size: 1.1rem;
+        padding: 0.6rem;
+        border-radius: 10px;
+        border: none;
+        transition: all 0.3s;
     }
-    .badge-warning {
-        background: #FFA500;
-        color: #000;
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 600;
+    .stButton > button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
     }
-    .badge-danger {
-        background: #FF4444;
-        color: #fff;
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 600;
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #1a1a3e, #0f0f23);
+        border-radius: 10px;
+        border: 1px solid #2a2a4a;
     }
+    
     /* Footer */
     .footer {
         text-align: center;
-        padding: 1rem;
+        padding: 1.5rem;
         color: #666;
-        font-size: 0.8rem;
-        border-top: 1px solid #333;
+        font-size: 0.85rem;
+        border-top: 1px solid #2a2a4a;
         margin-top: 2rem;
+        background: linear-gradient(135deg, #0a0a1a, #1a1a2e);
+        border-radius: 10px;
     }
     .footer span {
         color: #FFD700;
+        font-weight: 600;
+    }
+    .footer .heart {
+        color: #FF4444;
+    }
+    
+    /* Select boxes centre */
+    .stSelectbox, .stMultiselect, .stNumberInput, .stCheckbox {
+        width: 100%;
+    }
+    
+    /* Centre all widgets */
+    .stSelectbox > div, .stMultiselect > div {
+        width: 100%;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================================================
-# 🔥 SYMBOL LISTS - UPDATED
+# 🔥 SYMBOL LISTS
 # ==========================================================================
 
 # --- NIFTY 200 STOCKS ---
@@ -180,44 +249,23 @@ NIFTY_200 = [
     "TRENT.NS", "UBL.NS", "VOLTAS.NS", "ZYDUSLIFE.NS"
 ]
 
-# --- NIFTY 500 STOCKS (Additional 300 stocks - Top ones) ---
+# --- NIFTY 500 ADDITIONAL ---
 NIFTY_500_ADD = [
-    "AARTIIND.NS", "ABBOTINDIA.NS", "ABFRL.NS", "ADANIENT.NS", "ADANIGREEN.NS",
-    "ADANIPORTS.NS", "ADANIPOWER.NS", "ALKEM.NS", "AMBER.NS", "ANGELONE.NS",
-    "APOLLOHOSP.NS", "APOLLOTYRE.NS", "ASHOKLEY.NS", "ASTRAL.NS", "ATUL.NS",
-    "AUBANK.NS", "AUROPHARMA.NS", "AXISBANK.NS", "BAJAJ-AUTO.NS", "BAJFINANCE.NS",
-    "BAJAJFINSV.NS", "BALKRISIND.NS", "BANDHANBNK.NS", "BANKBARODA.NS", "BATAINDIA.NS",
-    "BEL.NS", "BERGEPAINT.NS", "BHARATFORG.NS", "BHARTIARTL.NS", "BHEL.NS",
-    "BIOCON.NS", "BOSCHLTD.NS", "BPCL.NS", "BRITANNIA.NS", "CADILAHC.NS",
-    "CANBK.NS", "CASTROLIND.NS", "CENTRALBK.NS", "CHAMBLFERT.NS", "CHOLAFIN.NS",
-    "CIPLA.NS", "CITYUNION.NS", "COALINDIA.NS", "COFORGE.NS", "COLPAL.NS",
-    "CONCOR.NS", "COROMANDEL.NS", "CROMPTON.NS", "CUB.NS", "CUMMINSIND.NS",
-    "DABUR.NS", "DEEPAKNTR.NS", "DELTACORP.NS", "DIVISLAB.NS", "DLF.NS",
-    "DRREDDY.NS", "EICHERMOT.NS", "EMAMILTD.NS", "ESCORTS.NS", "EXIDEIND.NS",
-    "FEDERALBNK.NS", "FORTIS.NS", "GAIL.NS", "GLENMARK.NS", "GODREJCP.NS",
-    "GODREJPROP.NS", "GRANULES.NS", "GRASIM.NS", "GSPL.NS", "GUJGASLTD.NS",
-    "HAL.NS", "HCLTECH.NS", "HDFCAMC.NS", "HDFCBANK.NS", "HDFCLIFE.NS",
-    "HEROMOTOCO.NS", "HINDALCO.NS", "HINDUNILVR.NS", "HINDZINC.NS", "HONAUT.NS",
-    "ICICIBANK.NS", "ICICIGI.NS", "ICICIPRULI.NS", "IDEA.NS", "IDFCFIRSTB.NS",
-    "IEX.NS", "IGL.NS", "INDIGO.NS", "INDUSINDBK.NS", "INFY.NS",
-    "IOC.NS", "IRCTC.NS", "ITC.NS", "JINDALSTEL.NS", "JSWSTEEL.NS",
-    "JUBLFOOD.NS", "KOTAKBANK.NS", "L&TFH.NS", "LICHSGFIN.NS", "LT.NS",
-    "LTFH.NS", "LTI.NS", "LTTS.NS", "LUPIN.NS", "M&M.NS",
-    "M&MFIN.NS", "MANAPPURAM.NS", "MARICO.NS", "MARUTI.NS", "MAXHEALTH.NS",
-    "MCDOWELL-N.NS", "MCX.NS", "MFSL.NS", "MGL.NS", "MINDTREE.NS",
-    "MOTHERSON.NS", "MPHASIS.NS", "MRF.NS", "MUTHOOTFIN.NS", "NATIONALUM.NS",
-    "NAUKRI.NS", "NAVINFLUOR.NS", "NESTLEIND.NS", "NETWORK18.NS", "NHPC.NS",
-    "NIITTECH.NS", "NMDC.NS", "NTPC.NS", "OBEROIRLTY.NS", "ONGC.NS",
-    "PAGEIND.NS", "PEL.NS", "PERSISTENT.NS", "PETRONET.NS", "PFC.NS",
-    "PIDILITIND.NS", "PIIND.NS", "PNB.NS", "POWERGRID.NS", "PRESTIGE.NS",
-    "PVRINOX.NS", "RAMCOCEM.NS", "RBLBANK.NS", "RECLTD.NS", "RELIANCE.NS",
-    "SAIL.NS", "SBILIFE.NS", "SBIN.NS", "SHREECEM.NS", "SIEMENS.NS",
-    "SOBHA.NS", "SRTRANSFIN.NS", "SUNPHARMA.NS", "SUNTV.NS", "SUZLON.NS",
-    "TATACHEM.NS", "TATACONSUM.NS", "TATAMOTORS.NS", "TATAPOWER.NS", "TATASTEEL.NS",
-    "TCS.NS", "TECHM.NS", "TITAN.NS", "TORNTPHARM.NS", "TRENT.NS",
-    "TVSMOTOR.NS", "UBL.NS", "ULTRACEMCO.NS", "UNIONBANK.NS", "UPL.NS",
-    "VEDL.NS", "VOLTAS.NS", "WIPRO.NS", "YESBANK.NS", "ZEEL.NS",
-    "ZENSARTECH.NS", "ZYDUSLIFE.NS"
+    "AARTIIND.NS", "ABBOTINDIA.NS", "ABFRL.NS", "ALKEM.NS", "AMBER.NS",
+    "ANGELONE.NS", "ASTRAL.NS", "ATUL.NS", "BALRAMCHIN.NS", "BATAINDIA.NS",
+    "BHARATFORG.NS", "BIOCON.NS", "CADILAHC.NS", "CASTROLIND.NS",
+    "CEATLTD.NS", "CENTRALBK.NS", "CHAMBLFERT.NS", "CHOLAFIN.NS",
+    "CITYUNION.NS", "COLPAL.NS", "CONCOR.NS", "COROMANDEL.NS",
+    "CROMPTON.NS", "CUB.NS", "CUMMINSIND.NS", "DEEPAKNTR.NS",
+    "DELTACORP.NS", "EXIDEIND.NS", "GRANULES.NS", "GSPL.NS",
+    "GUJGASLTD.NS", "HDFCAMC.NS", "HONAUT.NS", "ICICIGI.NS",
+    "ICICIPRULI.NS", "IEX.NS", "IGL.NS", "INDIGO.NS",
+    "JUBLFOOD.NS", "LICHSGFIN.NS", "M&MFIN.NS",
+    "MANAPPURAM.NS", "MCDOWELL-N.NS", "MFSL.NS", "MGL.NS",
+    "MUTHOOTFIN.NS", "NATIONALUM.NS", "NAUKRI.NS",
+    "NAVINFLUOR.NS", "PAGEIND.NS", "PEL.NS",
+    "RAMCOCEM.NS", "SHREECEM.NS", "SRTRANSFIN",
+    "TRENT.NS", "UBL.NS", "VOLTAS.NS", "ZYDUSLIFE.NS"
 ]
 
 # --- FUTURE STOCKS ---
@@ -253,21 +301,52 @@ NASDAQ_100 = [
     "LMT", "HON"
 ]
 
-# --- FOREX (INR pairs removed) ---
+# --- FOREX (No INR) ---
 FOREX_TICKERS = [
-    # Major Pairs
     "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", 
     "USDCAD=X", "USDCHF=X", "NZDUSD=X",
-    # Minor Pairs - Euro Crosses
     "EURGBP=X", "EURJPY=X", "EURCHF=X", "EURCAD=X", 
     "EURAUD=X", "EURNZD=X",
-    # Minor Pairs - Pound Crosses
     "GBPJPY=X", "GBPCHF=X", "GBPCAD=X", "GBPAUD=X", "GBPNZD=X",
-    # Minor Pairs - Yen Crosses
     "AUDJPY=X", "CADJPY=X", "CHFJPY=X", "NZDJPY=X",
-    # Minor Pairs - Other Crosses
     "AUDCAD=X", "AUDCHF=X", "AUDNZD=X", "CADCHF=X", 
     "NZDCAD=X", "NZDCHF=X",
+]
+
+# --- COMMODITIES ---
+COMMODITY_TICKERS = [
+    "GC=F",    # Gold
+    "SI=F",    # Silver
+    "HG=F",    # Copper
+    "PL=F",    # Platinum
+    "PA=F",    # Palladium
+    "CL=F",    # Crude Oil WTI
+    "BZ=F",    # Brent Crude
+    "NG=F",    # Natural Gas
+    "RB=F",    # Gasoline
+    "HO=F",    # Heating Oil
+    "ZC=F",    # Corn
+    "ZS=F",    # Soybean
+    "ZW=F",    # Wheat
+    "ZM=F",    # Soybean Meal
+    "ZL=F",    # Soybean Oil
+    "CT=F",    # Cotton
+    "SB=F",    # Sugar
+    "KC=F",    # Coffee
+    "CC=F",    # Cocoa
+    "LE=F",    # Live Cattle
+    "HE=F",    # Lean Hogs
+    "GF=F",    # Feeder Cattle
+]
+
+# --- CRYPTO ---
+CRYPTO_TICKERS = [
+    "BTC-USD", "ETH-USD", "USDT-USD", "BNB-USD", "SOL-USD",
+    "XRP-USD", "ADA-USD", "DOGE-USD", "TRX-USD", "DOT-USD",
+    "MATIC-USD", "SHIB-USD", "LTC-USD", "AVAX-USD", "UNI-USD",
+    "LINK-USD", "ATOM-USD", "ETC-USD", "XLM-USD", "BCH-USD",
+    "ALGO-USD", "VET-USD", "ICP-USD", "FIL-USD", "EGLD-USD",
+    "APT-USD", "ARB-USD", "OP-USD", "SUI-USD", "SEI-USD",
 ]
 
 # ==========================================================================
@@ -298,6 +377,14 @@ MARKET_PRESETS = {
     "💱 Forex (No INR)": {
         "suffix_hint": "e.g. EURUSD=X, GBPJPY=X",
         "tickers": FOREX_TICKERS,
+    },
+    "🥇 Commodities": {
+        "suffix_hint": "e.g. GC=F (Gold), CL=F (Crude)",
+        "tickers": COMMODITY_TICKERS,
+    },
+    "🪙 Crypto": {
+        "suffix_hint": "e.g. BTC-USD, ETH-USD",
+        "tickers": CRYPTO_TICKERS,
     },
 }
 
@@ -331,10 +418,10 @@ STATUS_LABELS = {
 # 🔥 NEW LAYOUT - TITLE
 # ==========================================================================
 
-st.markdown('<div class="main-title">📊 DEEPAK <span>SUPPLY DEMAND</span> STRATEGY</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">📊 DEEPAK <span>SUPPLY DEMAND</span> STRATEGY<small>Professional Zone Detection & Alert System</small></div>', unsafe_allow_html=True)
 
 # ==========================================================================
-# 🔥 SIDEBAR - NEW LAYOUT
+# 🔥 SIDEBAR - CENTRE LAYOUT
 # ==========================================================================
 
 with st.sidebar:
@@ -592,20 +679,22 @@ if trigger_scan:
                 st.warning(f"Telegram ({c['ticker']} [{c['interval']}]): {msg}")
 
 # ==========================================================================
-# 🔥 DISPLAY RESULTS - NEW LAYOUT
+# 🔥 DISPLAY RESULTS - CENTRE LAYOUT
 # ==========================================================================
 
 if "combo_results" in st.session_state:
     combo_results = st.session_state["combo_results"]
     allowed_status = resolve_status_filter(status_choice)
 
-    # Status Bar
+    # Status Bar - Centre
+    st.markdown('<div class="metric-grid">', unsafe_allow_html=True)
+    
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">🕒 {st.session_state.get('last_scan_time', '-')}</div>
-            <div class="metric-label">Last Scan</div>
+            <div class="metric-value">🕒</div>
+            <div class="metric-label">{st.session_state.get('last_scan_time', '-')}</div>
         </div>
         """, unsafe_allow_html=True)
     with col2:
@@ -623,6 +712,8 @@ if "combo_results" in st.session_state:
             <div class="metric-label">Total Combos</div>
         </div>
         """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Live Alerts
     with st.expander(f"🔔 Live Alerts ({len(st.session_state['alert_log'])})", expanded=bool(st.session_state["alert_log"])):
@@ -641,7 +732,7 @@ if "combo_results" in st.session_state:
         f"{t} [{i} · {combo_results[(t, i)]['period_used']}]" for t, i in combo_keys
     ]
 
-    # Summary Metrics
+    # Summary Metrics - Centre Grid
     total_zones_all = 0
     total_fresh_all = 0
     total_sl_all = 0
@@ -657,6 +748,7 @@ if "combo_results" in st.session_state:
                 total_tp_all += 1
 
     st.markdown("---")
+    st.markdown('<div class="metric-grid">', unsafe_allow_html=True)
     
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -687,6 +779,8 @@ if "combo_results" in st.session_state:
             <div class="metric-label">Target Hit</div>
         </div>
         """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Chart Section
     st.markdown("---")
@@ -699,17 +793,41 @@ if "combo_results" in st.session_state:
     zones_filtered = [z for z in result.all_zones if z.status in allowed_status]
 
     # Stats for selected
-    st.markdown("""
-    <div style="display:flex; gap:1rem; flex-wrap:wrap; margin:1rem 0;">
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="metric-grid">', unsafe_allow_html=True)
     
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🎯 SL Hits", result.sl_count)
-    col2.metric("✅ TP Hits", result.tp_count)
-    total = result.sl_count + result.tp_count
-    winrate = (result.tp_count / total * 100) if total else 0
-    col3.metric("📈 Win Rate", f"{winrate:.1f}%")
-    col4.metric("📊 Zones Shown", f"{len(zones_filtered)} / {len(result.all_zones)}")
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">🎯 {result.sl_count}</div>
+            <div class="metric-label">SL Hits</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">✅ {result.tp_count}</div>
+            <div class="metric-label">TP Hits</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        total = result.sl_count + result.tp_count
+        winrate = (result.tp_count / total * 100) if total else 0
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value" style="color:#00FF88;">📈 {winrate:.1f}%</div>
+            <div class="metric-label">Win Rate</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">📊 {len(zones_filtered)}/{len(result.all_zones)}</div>
+            <div class="metric-label">Zones Shown</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Chart
     fig = go.Figure()
@@ -795,7 +913,7 @@ if "combo_results" in st.session_state:
     # Footer
     st.markdown(f"""
     <div class="footer">
-        Made with ❤️ by <span>DEEPAK</span> | Supply & Demand Strategy | ⏱️ {dt.datetime.now().strftime('%d-%b-%Y %H:%M:%S')}
+        Made with <span class="heart">❤️</span> by <span>DEEPAK</span> &nbsp;|&nbsp; Supply & Demand Strategy &nbsp;|&nbsp; ⏱️ {dt.datetime.now().strftime('%d-%b-%Y %H:%M:%S')}
     </div>
     """, unsafe_allow_html=True)
 
