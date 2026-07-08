@@ -57,63 +57,69 @@ STATUS_LABELS = {
 }
 
 # ==========================================================================
-# 🔥 MARKET PRESETS
+# 🔥 MARKET PRESETS - NIFTY 500 ADDED
 # ==========================================================================
 
 MARKET_PRESETS = {
-    "Indian Stocks (NSE)": {
-        "suffix_hint": "e.g. RELIANCE.NS, TCS.NS, INFY.NS",
+    "🇮🇳 NIFTY 500": {
+        "suffix_hint": "e.g. RELIANCE.NS, TCS.NS",
         "tickers": [
             "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
             "SBIN.NS", "ITC.NS", "LT.NS", "AXISBANK.NS", "KOTAKBANK.NS",
-            "BAJFINANCE.NS", "HINDUNILVR.NS", "MARUTI.NS", "SUNPHARMA.NS", "TATAMOTORS.NS",
+            "BAJFINANCE.NS", "HINDUNILVR.NS", "MARUTI.NS", "SUNPHARMA.NS",
             "WIPRO.NS", "HCLTECH.NS", "ASIANPAINT.NS", "ULTRACEMCO.NS", "ADANIPORTS.NS",
             "NTPC.NS", "ONGC.NS", "POWERGRID.NS", "COALINDIA.NS", "BHARTIARTL.NS",
             "TATACONSUM.NS", "PIDILITIND.NS", "DIVISLAB.NS", "DRREDDY.NS", "GRASIM.NS",
             "JSWSTEEL.NS", "TECHM.NS", "TITAN.NS", "HDFCLIFE.NS", "SBILIFE.NS",
             "BRITANNIA.NS", "HINDALCO.NS", "EICHERMOT.NS", "BAJAJFINSV.NS", "ADANIGREEN.NS",
             "ADANIENT.NS", "VEDL.NS", "TATASTEEL.NS", "JINDALSTEL.NS", "M&M.NS",
-            "BANKBARODA.NS", "PNB.NS", "CANBK.NS", "UNIONBANK.NS", "INDUSINDBK.NS",
-            "YESBANK.NS", "FEDERALBNK.NS", "IDFCFIRSTB.NS", "RBLBANK.NS", "AUBANK.NS",
-            "MPHASIS.NS", "MINDTREE.NS", "COFORGE.NS", "LTI.NS", "LTTS.NS",
-            "PERSISTENT.NS", "HEXAWARE.NS", "NIITTECH.NS", "CIGNITI.NS", "ZENSARTECH.NS",
+            "BANKBARODA.NS", "PNB.NS", "CANBK.NS", "INDUSINDBK.NS", "YESBANK.NS",
+            "FEDERALBNK.NS", "IDFCFIRSTB.NS", "RBLBANK.NS", "AUBANK.NS",
+            "MPHASIS.NS", "COFORGE.NS", "LTTS.NS", "PERSISTENT.NS", "ZENSARTECH.NS",
             "CIPLA.NS", "GLENMARK.NS", "AUROPHARMA.NS", "LUPIN.NS", "TORNTPHARM.NS",
-            "APOLLOHOSP.NS", "FORTIS.NS", "MAXHEALTH.NS", "NARAYANA.NS", "METROPOLIS.NS",
-            "HEROMOTOCO.NS", "BAJAJ-AUTO.NS", "TVSMOTOR.NS", "ASHOKLEY.NS", "ESCORTS.NS",
-            "BOSCHLTD.NS", "MOTHERSON.NS", "BALKRISIND.NS", "APOLLOTYRE.NS", "MRF.NS",
-            "NESTLEIND.NS", "DABUR.NS", "MARICO.NS", "GODREJCP.NS", "EMAMILTD.NS",
-            "TATAPOWER.NS", "ADANIPOWER.NS", "GAIL.NS", "PETRONET.NS", "IOC.NS", "BPCL.NS",
-            "HINDZINC.NS", "NMDC.NS", "SAIL.NS",
-            "DLF.NS", "GODREJPROP.NS", "OBEROIRLTY.NS", "PRESTIGE.NS", "SOBHA.NS",
-            "L&TFH.NS", "RECLTD.NS", "PFC.NS", "NHPC.NS", "IRCTC.NS",
-            "SUNTV.NS", "PVRINOX.NS", "ZEE.NS", "NETWORK18.NS", "TV18BRDCST.NS",
-            "BHARTIARTL.NS", "TATACOMM.NS", "IDEA.NS",
-            "HAL.NS", "BEL.NS", "BHEL.NS", "SIEMENS.NS", "ABB.NS",
-            "SUZLON.NS", "TATACHEM.NS", "UPL.NS", "PIIND.NS", "SRTRANSFIN.NS",
+            "APOLLOHOSP.NS", "FORTIS.NS", "MAXHEALTH.NS", "HEROMOTOCO.NS", "BAJAJ-AUTO.NS",
+            "TVSMOTOR.NS", "ASHOKLEY.NS", "ESCORTS.NS", "BOSCHLTD.NS", "MOTHERSON.NS",
+            "BALKRISIND.NS", "APOLLOTYRE.NS", "MRF.NS", "NESTLEIND.NS", "DABUR.NS",
+            "MARICO.NS", "GODREJCP.NS", "EMAMILTD.NS", "TATAPOWER.NS", "ADANIPOWER.NS",
+            "GAIL.NS", "PETRONET.NS", "IOC.NS", "BPCL.NS", "HINDZINC.NS", "NMDC.NS",
+            "SAIL.NS", "DLF.NS", "GODREJPROP.NS", "OBEROIRLTY.NS", "PRESTIGE.NS",
+            "SOBHA.NS", "LTFH.NS", "RECLTD.NS", "PFC.NS", "NHPC.NS", "IRCTC.NS",
+            "SUNTV.NS", "PVRINOX.NS", "ZEEL.NS", "NETWORK18.NS", "HAL.NS", "BEL.NS",
+            "BHEL.NS", "SIEMENS.NS", "ABB.NS", "SUZLON.NS", "TATACHEM.NS", "UPL.NS",
+            "PIIND.NS", "SRTRANSFIN", "TRENT.NS", "UBL.NS", "VOLTAS.NS", "ZYDUSLIFE.NS",
+            "ABCAPITAL.NS", "ACC.NS", "ALKEM.NS", "AMBER.NS", "ANGELONE.NS",
+            "ASTRAL.NS", "ATUL.NS", "BALRAMCHIN.NS", "BANDHANBNK.NS", "BATAINDIA.NS",
+            "BERGEPAINT.NS", "BIOCON.NS", "CADILAHC.NS", "CASTROLIND.NS", "CEATLTD.NS",
+            "CENTRALBK.NS", "CHAMBLFERT.NS", "CHOLAFIN.NS", "CITYUNION.NS", "COLPAL.NS",
+            "CONCOR.NS", "COROMANDEL.NS", "CROMPTON.NS", "CUB.NS", "CUMMINSIND.NS",
+            "DEEPAKNTR.NS", "DELTACORP.NS", "EXIDEIND.NS", "GRANULES.NS", "GSPL.NS",
+            "GUJGASLTD.NS", "HDFCAMC.NS", "HONAUT.NS", "ICICIGI.NS", "ICICIPRULI.NS",
+            "IDEA.NS", "IEX.NS", "IGL.NS", "INDIGO.NS", "JUBLFOOD.NS", "LICHSGFIN.NS",
+            "M&MFIN.NS", "MANAPPURAM.NS", "MCDOWELL-N.NS", "MCX.NS", "MFSL.NS", "MGL.NS",
+            "MUTHOOTFIN.NS", "NATIONALUM.NS", "NAUKRI.NS", "NAVINFLUOR.NS", "PAGEIND.NS",
+            "PEL.NS", "RAMCOCEM.NS", "SHREECEM.NS"
         ],
     },
-    "US Stocks / Index": {
+    "🇺🇸 US Stocks / Index": {
         "suffix_hint": "e.g. AAPL, TSLA, ^GSPC, ^DJI",
         "tickers": [
             "AAPL", "TSLA", "MSFT", "GOOGL", "AMZN", "NVDA", "META",
             "NFLX", "ADBE", "CRM", "ORCL", "IBM", "CSCO", "INTC",
             "AMD", "QCOM", "TXN", "AVGO", "MU",
             "JPM", "BAC", "WFC", "C", "GS", "MS", "V", "MA", "PYPL",
-            "SQ", "COIN", "BLK", "AXP", "USB", "PNC", "TFC",
+            "COIN", "BLK", "AXP", "USB", "PNC", "TFC",
             "JNJ", "PFE", "MRK", "UNH", "CVS", "ABBV", "LLY",
             "GILD", "BIIB", "AMGN", "VRTX", "REGN", "MRNA",
             "PG", "KO", "PEP", "WMT", "COST", "HD", "MCD", "SBUX",
             "NKE", "DIS", "UPS", "FDX", "TGT", "LOW", "KHC",
             "XOM", "CVX", "COP", "SLB", "EOG", "OXY", "PSX", "VLO",
             "GE", "CAT", "BA", "RTX", "LMT", "HON", "UNP", "DHR",
-            "T", "VZ", "TMUS", "CMCSA", "CHTR", "DISH",
-            "AMT", "PLD", "CCI", "EQIX", "SPG", "PSA", "DLR",
-            "COIN", "MSTR", "RIOT", "MARA", "CLSK",
+            "T", "VZ", "TMUS", "CMCSA",
             "^GSPC", "^DJI", "^IXIC", "^RUT", "^VIX",
         ],
     },
-    "Forex": {
-        "suffix_hint": "e.g. EURUSD=X, USDINR=X, GBPJPY=X",
+    "💱 Forex": {
+        "suffix_hint": "e.g. EURUSD=X, GBPJPY=X",
         "tickers": [
             "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", 
             "USDCAD=X", "USDCHF=X", "NZDUSD=X",
@@ -123,11 +129,10 @@ MARKET_PRESETS = {
             "AUDJPY=X", "CADJPY=X", "CHFJPY=X", "NZDJPY=X",
             "AUDCAD=X", "AUDCHF=X", "AUDNZD=X", "CADCHF=X", 
             "NZDCAD=X", "NZDCHF=X",
-            "USDINR=X", "EURINR=X", "GBPINR=X", "JPYINR=X",
         ],
     },
-    "Commodity": {
-        "suffix_hint": "e.g. GC=F (Gold), CL=F (Crude), SI=F (Silver)",
+    "🥇 Commodity": {
+        "suffix_hint": "e.g. GC=F (Gold), CL=F (Crude)",
         "tickers": [
             "GC=F", "SI=F", "HG=F", "PL=F", "PA=F",
             "CL=F", "BZ=F", "NG=F", "RB=F", "HO=F",
@@ -136,7 +141,7 @@ MARKET_PRESETS = {
             "LE=F", "HE=F", "GF=F",
         ],
     },
-    "Crypto": {
+    "🪙 Crypto": {
         "suffix_hint": "e.g. BTC-USD",
         "tickers": ["BTC-USD"],
     },
@@ -152,7 +157,6 @@ st.markdown("## ⚙️ Settings")
 settings_box = st.container(border=True)
 
 with settings_box:
-    # ---- Row 1: Market / Ticker / Zone Status Filter / Timeframe ----
     row1_c1, row1_c2, row1_c3, row1_c4 = st.columns([1.2, 1.6, 1.4, 1])
     with row1_c1:
         market = st.selectbox("Market Type", list(MARKET_PRESETS.keys()))
@@ -171,7 +175,6 @@ with settings_box:
             "🎯 Zone Status Filter",
             options=["All", "Fresh Zone", "SL Zone", "Target Zone"],
             default=["All"],
-            help="Fresh = abhi tak SL/Target nahi laga. SL Zone = stoploss hit. Target Zone = target hit.",
         )
     with row1_c4:
         select_all_intervals = st.checkbox("✅ Select ALL timeframes", value=False)
@@ -190,15 +193,9 @@ with settings_box:
 
     st.divider()
 
-    # ---- Row 2: Period / Pattern rules / Base filter ----
     row2_c1, row2_c2, row2_c3, row2_c4, row2_c5, row2_c6 = st.columns([1, 1, 1, 1, 1, 1.4])
     with row2_c1:
-        period = st.selectbox(
-            "History Period",
-            PERIOD_OPTIONS,
-            index=PERIOD_OPTIONS.index("1y") if "1y" in PERIOD_OPTIONS else 0,
-            help="Intraday (5m/15m/30m) me Yahoo Finance khud history limit karta hai (~60 din).",
-        )
+        period = st.selectbox("History Period", PERIOD_OPTIONS, index=4)
     with row2_c2:
         atr_length = st.number_input("ATR Length", min_value=1, value=14)
     with row2_c3:
@@ -212,7 +209,6 @@ with settings_box:
 
     st.divider()
 
-    # ---- Row 3: Telegram alerts ----
     row3_c1, row3_c2, row3_c3, row3_c4 = st.columns([1, 1.3, 1.3, 1])
     with row3_c1:
         telegram_on = st.checkbox("📨 Enable Telegram alerts", value=False)
@@ -225,29 +221,22 @@ with settings_box:
 
     st.divider()
 
-    # ---- Row 4: Auto-Scan + In-app alerts ----
     st.markdown("**🔔 Alert System**")
     row4_c1, row4_c2, row4_c3, row4_c4 = st.columns([1.3, 1, 1, 1])
     with row4_c1:
-        auto_scan_on = st.checkbox("♻️ Auto-Scan (khud-b-khud refresh)", value=False)
+        auto_scan_on = st.checkbox("♻️ Auto-Scan", value=False)
     with row4_c2:
-        autoscan_interval = st.number_input(
-            "Interval (sec)", min_value=15, value=60, step=5, disabled=not auto_scan_on
-        )
+        autoscan_interval = st.number_input("Interval (sec)", min_value=15, value=60, step=5, disabled=not auto_scan_on)
     with row4_c3:
         sound_on = st.checkbox("🔊 Sound on new alert", value=True)
     with row4_c4:
         toast_on = st.checkbox("📳 In-app popup (toast)", value=True)
 
     if auto_scan_on and not AUTOREFRESH_AVAILABLE:
-        st.warning(
-            "⚠️ Auto-Scan ke liye `streamlit-autorefresh` package chahiye. "
-            "requirements.txt me `streamlit-autorefresh` add karke app ko re-deploy karein."
-        )
+        st.warning("⚠️ `streamlit-autorefresh` package required for auto-scan.")
 
     run_btn = st.button("🔄 Fetch & Scan", type="primary", use_container_width=True)
 
-# Auto-refresh timer (fires a rerun every N seconds when Auto-Scan is ON)
 if auto_scan_on and AUTOREFRESH_AVAILABLE:
     st_autorefresh(interval=int(autoscan_interval * 1000), key="autoscan_timer")
 
@@ -323,10 +312,10 @@ trigger_scan = run_btn or auto_scan_on
 
 if trigger_scan:
     if not final_tickers:
-        st.error("Kam se kam ek ticker select karein (ya 'Select ALL tickers' on karein).")
+        st.error("Kam se kam ek ticker select karein.")
         st.stop()
     if not final_intervals:
-        st.error("Kam se kam ek timeframe select karein (ya 'Select ALL timeframes' on karein).")
+        st.error("Kam se kam ek timeframe select karein.")
         st.stop()
 
     combo_results = {}
@@ -359,16 +348,13 @@ if trigger_scan:
     progress.empty()
 
     if not combo_results:
-        st.error("Kisi bhi ticker/interval combination me data nahi mila. Symbol check karein.")
+        st.error("Kisi bhi ticker/interval combination me data nahi mila.")
         st.stop()
 
     if downgraded:
-        st.info(
-            "ℹ️ Ye combos ke liye intraday data limit ki wajah se chhota period use hua "
-            "(available jitna data tha utna le liya gaya):\n\n" + "\n".join(f"- {x}" for x in downgraded)
-        )
+        st.info("ℹ️ In combos ke liye chhota period use hua:\n\n" + "\n".join(f"- {x}" for x in downgraded[:10]))
     if skipped:
-        st.warning("⚠️ Inme bilkul data nahi mila, skip kar diya:\n\n" + "\n".join(f"- {x}" for x in skipped))
+        st.warning("⚠️ Inme data nahi mila:\n\n" + "\n".join(f"- {x}" for x in skipped[:10]))
 
     st.session_state["combo_results"] = combo_results
     st.session_state["last_tickers"] = final_tickers
@@ -415,18 +401,44 @@ if trigger_scan:
             play_beep()
 
     if telegram_on:
-        to_send = [c for c in collected if c["key"] not in st.session_state["telegram_sent_keys"]]
+        is_fresh_only = "Fresh Zone" in status_choice and "All" not in status_choice
+        
+        if is_fresh_only:
+            to_send = [
+                c for c in collected 
+                if c["key"] not in st.session_state["telegram_sent_keys"] 
+                and c["event"]["zone"].status == "active"
+            ]
+            if to_send:
+                st.info(f"📨 Sirf {len(to_send)} Fresh Zones Telegram par bheje ja rahe hain...")
+        else:
+            to_send = [c for c in collected if c["key"] not in st.session_state["telegram_sent_keys"]]
+            if to_send:
+                st.info(f"📨 {len(to_send)} alerts (All Zones) Telegram par bheje ja rahe hain...")
+        
         if not bot_token or not chat_id:
             if to_send:
-                st.warning("📨 Telegram ON hai lekin Bot Token / Chat ID khaali hai — alert nahi bheja ja saka.")
+                st.warning("📨 Bot Token / Chat ID missing.")
+        
+        sent_count = 0
         for c in to_send:
+            if sent_count > 0 and sent_count % 3 == 0:
+                st.info(f"⏱️ Rate limit: Waiting 2 seconds... ({sent_count} messages sent)")
+                time.sleep(2)
+            
             chart_bytes = render_zone_chart(c["df"], c["event"], c["ticker"], c["interval"])
             if chart_bytes:
                 ok, msg = send_telegram_photo(bot_token, chat_id, chart_bytes, caption=c["text"])
             else:
                 ok, msg = send_telegram_message(bot_token, chat_id, c["text"])
+            
             st.session_state["telegram_sent_keys"].add(c["key"])
-            if not ok:
+            if ok:
+                sent_count += 1
+                zone_status = c["event"]["zone"].status
+                status_text = "Fresh" if zone_status == "active" else zone_status.upper()
+                st.success(f"✅ Telegram sent: {c['ticker']} [{c['interval']}] - {c['type']} ({status_text})")
+            else:
                 st.warning(f"Telegram ({c['ticker']} [{c['interval']}]): {msg}")
 
 
@@ -435,7 +447,6 @@ if trigger_scan:
 # ==========================================================================
 if "combo_results" in st.session_state:
     combo_results = st.session_state["combo_results"]
-    rr_target_display = st.session_state.get("rr_target", 3.0)
     allowed_status = resolve_status_filter(status_choice)
 
     status_line = f"🕒 Last scan: {st.session_state.get('last_scan_time', '-')}"
