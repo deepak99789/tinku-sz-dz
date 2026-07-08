@@ -1,7 +1,6 @@
 """
 alert_bot_us.py - 🇺🇸 NASDAQ 100 Stocks 24x7 Alert Bot
-EXACT NASDAQ 100 LIST - 100 Stocks Only (No ETFs, No Crypto, No REITs)
-Timeframes: 5m, 15m, 30m, 75m, 125m, 2h, 4h, Daily, Weekly
+REAL DATA - All yfinance supported timeframes
 """
 
 import os
@@ -19,137 +18,35 @@ from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
 
 # ==========================================================================
-# ⚙️ CONFIG - NASDAQ 100 (EXACT 100 STOCKS)
+# ⚙️ CONFIG - ALL YFINANCE SUPPORTED TIMEFRAMES (REAL DATA)
 # ==========================================================================
 
-# 🔥 TIMEFRAMES - 4h ADDED
 INTERVALS = [
-    "5m", "15m", "30m", "75m", "125m", "2h", "4h", "1d", "1wk"
+    "1m", "2m", "5m", "15m", "30m", "60m", "90m",
+    "1d", "5d", "1wk", "1mo", "3mo"
 ]
 
-# 🔥 EXACT NASDAQ 100 STOCKS (Sirf 100 - As of 2024)
 TICKERS = [
-    # ===== Technology (50) =====
-    "AAPL",    # Apple Inc.
-    "MSFT",    # Microsoft Corporation
-    "GOOGL",   # Alphabet Inc. (Class A)
-    "GOOG",    # Alphabet Inc. (Class C)
-    "AMZN",    # Amazon.com Inc.
-    "NVDA",    # NVIDIA Corporation
-    "META",    # Meta Platforms Inc.
-    "TSLA",    # Tesla Inc.
-    "NFLX",    # Netflix Inc.
-    "ADBE",    # Adobe Inc.
-    "CRM",     # Salesforce Inc.
-    "ORCL",    # Oracle Corporation
-    "CSCO",    # Cisco Systems Inc.
-    "INTC",    # Intel Corporation
-    "AMD",     # Advanced Micro Devices Inc.
-    "QCOM",    # QUALCOMM Incorporated
-    "TXN",     # Texas Instruments Incorporated
-    "AVGO",    # Broadcom Inc.
-    "MU",      # Micron Technology Inc.
-    "PLTR",    # Palantir Technologies Inc.
-    "SNOW",    # Snowflake Inc.
-    "CRWD",    # CrowdStrike Holdings Inc.
-    "PANW",    # Palo Alto Networks Inc.
-    "FTNT",    # Fortinet Inc.
-    "DDOG",    # Datadog Inc.
-    "MDB",     # MongoDB Inc.
-    "TEAM",    # Atlassian Corporation
-    "NET",     # Cloudflare Inc.
-    "NOW",     # ServiceNow Inc.
-    "ADSK",    # Autodesk Inc.
-    "CDNS",    # Cadence Design Systems Inc.
-    "SNPS",    # Synopsys Inc.
-    "NXPI",    # NXP Semiconductors NV
-    "MCHP",    # Microchip Technology Inc.
-    "ADI",     # Analog Devices Inc.
-    "MRVL",    # Marvell Technology Inc.
-    "ANET",    # Arista Networks Inc.
-    "SMCI",    # Super Micro Computer Inc.
-    "ON",      # ON Semiconductor Corporation
-    "LRCX",    # Lam Research Corporation
-    "KLAC",    # KLA Corporation
-    "AMAT",    # Applied Materials Inc.
-    "DELL",    # Dell Technologies Inc.
-    "HPQ",     # HP Inc.
-    "HPE",     # Hewlett Packard Enterprise
-    "NTAP",    # NetApp Inc.
-    "STX",     # Seagate Technology Holdings
-    "WDC",     # Western Digital Corporation
-    "TER",     # Teradyne Inc.
-    "ENTG",    # Entegris Inc.
-    
-    # ===== Finance & Payments (8) =====
-    "V",       # Visa Inc.
-    "MA",      # Mastercard Incorporated
-    "PYPL",    # PayPal Holdings Inc.
-    "COIN",    # Coinbase Global Inc.
-    "BLK",     # BlackRock Inc.
-    "AXP",     # American Express Company
-    "SCHW",    # The Charles Schwab Corporation
-    "SPGI",    # S&P Global Inc.
-    
-    # ===== Healthcare & Biotech (18) =====
-    "JNJ",     # Johnson & Johnson
-    "PFE",     # Pfizer Inc.
-    "MRK",     # Merck & Co. Inc.
-    "UNH",     # UnitedHealth Group Incorporated
-    "ABBV",    # AbbVie Inc.
-    "LLY",     # Eli Lilly and Company
-    "GILD",    # Gilead Sciences Inc.
-    "AMGN",    # Amgen Inc.
-    "VRTX",    # Vertex Pharmaceuticals Incorporated
-    "REGN",    # Regeneron Pharmaceuticals Inc.
-    "MRNA",    # Moderna Inc.
-    "ISRG",    # Intuitive Surgical Inc.
-    "DHR",     # Danaher Corporation
-    "TMO",     # Thermo Fisher Scientific Inc.
-    "ABT",     # Abbott Laboratories
-    "MDT",     # Medtronic plc
-    "SYK",     # Stryker Corporation
-    "BSX",     # Boston Scientific Corporation
-    
-    # ===== Consumer & Retail (12) =====
-    "PG",      # Procter & Gamble Company
-    "KO",      # The Coca-Cola Company
-    "PEP",     # PepsiCo Inc.
-    "WMT",     # Walmart Inc.
-    "COST",    # Costco Wholesale Corporation
-    "HD",      # The Home Depot Inc.
-    "MCD",     # McDonald's Corporation
-    "SBUX",    # Starbucks Corporation
-    "NKE",     # NIKE Inc.
-    "DIS",     # The Walt Disney Company
-    "TGT",     # Target Corporation
-    "LOW",     # Lowe's Companies Inc.
-    
-    # ===== Energy (6) =====
-    "XOM",     # Exxon Mobil Corporation
-    "CVX",     # Chevron Corporation
-    "COP",     # ConocoPhillips
-    "EOG",     # EOG Resources Inc.
-    "OXY",     # Occidental Petroleum Corporation
-    "PSX",     # Phillips 66
-    
-    # ===== Industrial (6) =====
-    "GE",      # General Electric Company
-    "CAT",     # Caterpillar Inc.
-    "BA",      # Boeing Company
-    "RTX",     # RTX Corporation
-    "LMT",     # Lockheed Martin Corporation
-    "HON",     # Honeywell International Inc.
+    "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "NVDA", "META",
+    "TSLA", "NFLX", "ADBE", "CRM", "ORCL", "CSCO", "INTC",
+    "AMD", "QCOM", "TXN", "AVGO", "MU", "PLTR", "SNOW",
+    "CRWD", "PANW", "FTNT", "DDOG", "MDB", "TEAM", "NET",
+    "NOW", "ADSK", "CDNS", "SNPS", "NXPI", "MCHP", "ADI",
+    "MRVL", "ANET", "SMCI", "ON", "LRCX", "KLAC", "AMAT",
+    "DELL", "HPQ", "HPE", "NTAP", "STX", "WDC", "TER", "ENTG",
+    "V", "MA", "PYPL", "COIN", "BLK", "AXP", "SCHW", "SPGI",
+    "JNJ", "PFE", "MRK", "UNH", "ABBV", "LLY", "GILD", "AMGN",
+    "VRTX", "REGN", "MRNA", "ISRG", "DHR", "TMO", "ABT", "MDT",
+    "SYK", "BSX", "PG", "KO", "PEP", "WMT", "COST", "HD",
+    "MCD", "SBUX", "NKE", "DIS", "TGT", "LOW", "XOM", "CVX",
+    "COP", "EOG", "OXY", "PSX", "GE", "CAT", "BA", "RTX",
+    "LMT", "HON"
 ]
-
-# 🔥 TOTAL = 50 + 8 + 18 + 12 + 6 + 6 = 100 STOCKS ✅
 
 YF_INTERVAL_MAP = {
-    "5m": "5m", "15m": "15m", "30m": "30m", "45m": "30m",
-    "60m": "60m", "75m": "60m", "125m": "60m",
-    "2h": "60m", "4h": "60m", "5h": "60m", "6h": "60m",
-    "8h": "60m", "10h": "60m", "12h": "1d", "16h": "1d",
-    "1d": "1d", "1wk": "1wk"
+    "1m": "1m", "2m": "2m", "5m": "5m", "15m": "15m", "30m": "30m",
+    "60m": "60m", "90m": "90m", "1d": "1d", "5d": "5d",
+    "1wk": "1wk", "1mo": "1mo", "3mo": "3mo"
 }
 
 PERIOD = "1mo"
@@ -162,7 +59,7 @@ ONLY_LATEST_BAR = True
 DEBOUNCE_SECONDS = 3600
 BATCH_SIZE = 5
 
-STATE_FILE = "alerted_state_us.json"
+STATE_FILE = "alert_state_us.json"
 MAX_STATE_KEYS = 5000
 
 logging.basicConfig(
@@ -182,10 +79,7 @@ PERIOD_LADDER = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
 
 def get_yf_interval(itv: str) -> str:
-    supported = ["5m", "15m", "30m", "60m", "1h", "1d", "1wk"]
-    if itv in supported:
-        return itv
-    return YF_INTERVAL_MAP.get(itv, "60m")
+    return YF_INTERVAL_MAP.get(itv, itv)
 
 
 def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
@@ -211,7 +105,9 @@ def load_state() -> set:
         try:
             with open(STATE_FILE) as f:
                 data = json.load(f)
-                return set(data) if isinstance(data, list) else set()
+                if isinstance(data, list):
+                    return set(data)
+                return set()
         except Exception:
             return set()
     return set()
@@ -221,9 +117,10 @@ def save_state(keys: set) -> None:
     keys_list = list(keys)[-MAX_STATE_KEYS:]
     try:
         with open(STATE_FILE, "w") as f:
-            json.dump(keys_list, f)
+            json.dump(keys_list, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
+        logger.info(f"✅ State saved: {len(keys_list)} keys")
     except Exception as e:
         logger.error(f"Error saving state: {e}")
 
@@ -239,9 +136,10 @@ def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
 
 def main():
     logger.info("=" * 60)
-    logger.info("🇺🇸 NASDAQ 100 SCANNER STARTED")
+    logger.info("🇺🇸 NASDAQ 100 SCANNER STARTED (REAL DATA)")
     logger.info(f"📊 Total Symbols: {len(TICKERS)}")
     logger.info(f"📊 Total Timeframes: {len(INTERVALS)}")
+    logger.info(f"📌 Timeframes: {INTERVALS}")
     logger.info("=" * 60)
     
     if not BOT_TOKEN or not CHAT_ID:
@@ -283,7 +181,7 @@ def main():
                     continue
                 sent_keys.add(key)
                 last_alert_time[key] = time.time()
-                txt = build_alert_text(tkr, itv, e, df, RR_TARGET)
+                txt = build_alert_text(tkr, itv, e, df, RR_TARGET, "yfinance_real")
                 chart_bytes = render_zone_chart(df, e, tkr, itv)
                 pending_alerts.append({
                     "ticker": tkr, "interval": itv, "type": e["type"],
@@ -304,15 +202,10 @@ def main():
 
     save_state(sent_keys)
     
-    summary = f"""🇺🇸 NASDAQ 100 SCAN COMPLETE
-  • Symbols: {len(TICKERS)}
-  • Timeframes: {len(INTERVALS)}
-  • Zones found: {total_zones}
-  • New alerts: {new_count}
-  • ⏱️ {dt.datetime.now().strftime('%d-%b %H:%M:%S')}"""
-    
-    
-    logger.info("📊 NASDAQ 100 SCAN COMPLETE")
+    logger.info("📊 NASDAQ 100 SCAN COMPLETE (REAL DATA)")
+    logger.info(f"  • Symbols: {len(TICKERS)}")
+    logger.info(f"  • Timeframes: {len(INTERVALS)}")
+    logger.info(f"  • New alerts: {new_count}")
 
 
 if __name__ == "__main__":
