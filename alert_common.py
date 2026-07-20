@@ -15,13 +15,21 @@ ALERT_ICONS = {
     "tp_hit": "🎯",
 }
 
+def get_rounding(tkr: str) -> int:
+    """Market ke hisaab se decimal places (Sirf Key ke liye)"""
+    if "=X" in tkr:  # Forex
+        return 2
+    if "BTC" in tkr or "ETH" in tkr:  # Crypto
+        return 0
+    if "^" in tkr:  # Indices
+        return 0
+    return 1  # Stocks - 1 decimal place
 
 def alert_key(tkr: str, itv: str, event: dict) -> str:
-    """Unique key per zone - NO bar_index (stable across runs)"""
+    """🔥 FINAL FIX: Sirf 1 decimal (Stocks) aur 2 decimal (Forex)"""
     z = event["zone"]
-    # 🔥 bar_index hata diya - zone permanent rahega
-    return f"{tkr}|{itv}|{z.pattern_name}|{round(z.proximal, 4)}|{round(z.distal, 4)}"
-
+    decimals = get_rounding(tkr)
+    return f"{tkr}|{itv}|{z.pattern_name}|{round(z.proximal, decimals)}|{round(z.distal, decimals)}"
 
 def build_alert_text(tkr: str, itv: str, event: dict, df, rr_target: float) -> str:
     z = event["zone"]
@@ -55,7 +63,6 @@ def build_alert_text(tkr: str, itv: str, event: dict, df, rr_target: float) -> s
         lines.append(f"Target: {z.target:.4f}")
 
     return "\n".join(lines)
-
 
 def render_zone_chart(df, event: dict, tkr: str, itv: str):
     try:
