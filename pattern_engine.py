@@ -310,6 +310,9 @@ def track_zones(
     highs = d["High"].values
     lows = d["Low"].values
 
+    # 🔥 Track zone keys to prevent duplicates
+    seen_zone_keys = set()
+
     for i in range(n):
         atr_buffer = atr_series.iloc[i] * atr_multiplier if not np.isnan(atr_series.iloc[i]) else 0.0
         pre_dist = atr_series.iloc[i] * pre_entry_mult if not np.isnan(atr_series.iloc[i]) else 0.0
@@ -317,6 +320,14 @@ def track_zones(
         # 1) new zone creation
         if d["is_RBD"].iloc[i] or d["is_DBD"].iloc[i]:
             z = _zone_from_supply_row(d, i, atr_buffer)
+            
+            # 🔥 FIX: Check if similar zone already exists
+            zone_key = f"{z.pattern_name}|{round(z.proximal, 2)}|{round(z.distal, 2)}"
+            if zone_key in seen_zone_keys:
+                # Duplicate zone, skip
+                continue
+            seen_zone_keys.add(zone_key)
+            
             risk = z.distal - z.proximal
             z.target = z.proximal - risk * rr_target
             z.trigger_bar = i
@@ -326,6 +337,14 @@ def track_zones(
 
         if d["is_DBR"].iloc[i] or d["is_RBR"].iloc[i]:
             z = _zone_from_demand_row(d, i, atr_buffer)
+            
+            # 🔥 FIX: Check if similar zone already exists
+            zone_key = f"{z.pattern_name}|{round(z.proximal, 2)}|{round(z.distal, 2)}"
+            if zone_key in seen_zone_keys:
+                # Duplicate zone, skip
+                continue
+            seen_zone_keys.add(zone_key)
+            
             risk = z.proximal - z.distal
             z.target = z.proximal + risk * rr_target
             z.trigger_bar = i
@@ -380,7 +399,7 @@ def track_zones(
                 z.status = "sl"
                 z.end_bar = i
                 events.append({"bar": i, "type": "sl_hit", "zone": z})
-                continue  # removed from active (Pine array.remove)
+                continue  # removed from active
             elif target_hit:
                 tp_count += 1
                 z.status = "tp"
