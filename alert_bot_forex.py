@@ -100,6 +100,10 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+# ==========================================================================
+# 🔥 STATE FILE FUNCTIONS
+# ==========================================================================
+
 def load_state() -> set:
     if os.path.exists(STATE_FILE):
         try:
@@ -122,7 +126,7 @@ def save_state(keys: set) -> None:
             os.fsync(f.fileno())
         logger.info(f"✅ State saved: {len(keys_list)} keys")
     except Exception as e:
-        logger.error(f"Error saving state: {e}")
+        logger.error(f"❌ Error saving state: {e}")
 
 
 def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
@@ -132,6 +136,32 @@ def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
         if time.time() - last_alert_time[key] < DEBOUNCE_SECONDS:
             return False
     return True
+
+
+# ==========================================================================
+# 🔥 FINAL DUPLICATE CHECK WITH TOLERANCE
+# ==========================================================================
+
+def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set) -> bool:
+    """Check if same zone already alerted (with 0.0005 tolerance for Forex)"""
+    z = event["zone"]
+    tolerance = 0.0005 if "=X" in tkr else 0.5
+    for key in sent_keys:
+        parts = key.split("|")
+        if len(parts) >= 5:
+            saved_tkr = parts[0]
+            saved_itv = parts[1]
+            saved_pattern = parts[2]
+            try:
+                saved_prox = float(parts[3])
+                saved_dist = float(parts[4])
+            except ValueError:
+                continue
+            
+            if saved_tkr == tkr and saved_itv == itv and saved_pattern == z.pattern_name:
+                if abs(saved_prox - z.proximal) < tolerance and abs(saved_dist - z.distal) < tolerance:
+                    return True
+    return False
 
 
 def main():
@@ -177,8 +207,15 @@ def main():
             
             for e in events:
                 key = alert_key(tkr, itv, e)
+                
+                # 🔥 FINAL FIX: Check duplicate with tolerance
+                if is_duplicate_with_tolerance(tkr, itv, e, sent_keys):
+                    logger.info(f"  ⏭️ Skipping duplicate (tolerance): {key}")
+                    continue
+                
                 if not should_send_alert(key, sent_keys, last_alert_time):
                     continue
+                    
                 sent_keys.add(key)
                 last_alert_time[key] = time.time()
                 txt = build_alert_text(tkr, itv, e, df, RR_TARGET)
