@@ -135,13 +135,14 @@ def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
 
 
 # ==========================================================================
-# 🔥 DUPLICATE CHECK WITH TOLERANCE (Forex)
+# 🔥 DUPLICATE CHECK WITH TOLERANCE - FIXED
 # ==========================================================================
 
 def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set) -> bool:
-    """Check if same zone already alerted (with 0.0005 tolerance for forex)"""
+    """Check if same zone already alerted (with tolerance for forex/stocks)"""
     z = event["zone"]
     tolerance = 0.0005 if "=X" in tkr else 0.5
+    
     for key in sent_keys:
         parts = key.split("|")
         if len(parts) >= 5:
@@ -149,9 +150,9 @@ def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set)
             saved_itv = parts[1]
             saved_pattern = parts[2]
             try:
-                saved_prox = float(parts[3])
-                saved_dist = float(parts[4])
-            except ValueError:
+                saved_prox = float(parts[-2])
+                saved_dist = float(parts[-1])
+            except (ValueError, IndexError):
                 continue
             
             if saved_tkr == tkr and saved_itv == itv and saved_pattern == z.pattern_name:
