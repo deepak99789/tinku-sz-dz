@@ -100,10 +100,6 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
     return pd.DataFrame()
 
 
-# ==========================================================================
-# 🔥 STATE FILE FUNCTIONS
-# ==========================================================================
-
 def load_state() -> set:
     if os.path.exists(STATE_FILE):
         try:
@@ -139,11 +135,11 @@ def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
 
 
 # ==========================================================================
-# 🔥 FINAL DUPLICATE CHECK WITH TOLERANCE
+# 🔥 DUPLICATE CHECK WITH TOLERANCE (Forex)
 # ==========================================================================
 
 def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set) -> bool:
-    """Check if same zone already alerted (with 0.0005 tolerance for Forex)"""
+    """Check if same zone already alerted (with 0.0005 tolerance for forex)"""
     z = event["zone"]
     tolerance = 0.0005 if "=X" in tkr else 0.5
     for key in sent_keys:
@@ -208,7 +204,7 @@ def main():
             for e in events:
                 key = alert_key(tkr, itv, e)
                 
-                # 🔥 FINAL FIX: Check duplicate with tolerance
+                # 🔥 TOLERANCE CHECK
                 if is_duplicate_with_tolerance(tkr, itv, e, sent_keys):
                     logger.info(f"  ⏭️ Skipping duplicate (tolerance): {key}")
                     continue
