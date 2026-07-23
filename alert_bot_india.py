@@ -156,25 +156,29 @@ def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
 
 
 # ==========================================================================
-# 🔥 DUPLICATE CHECK WITH TOLERANCE
+# 🔥 DUPLICATE CHECK WITH TOLERANCE - FIXED
 # ==========================================================================
 
 def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set) -> bool:
     """Check if same zone already alerted (with 0.5 tolerance for stocks)"""
     z = event["zone"]
     tolerance = 0.5
+    
     for key in sent_keys:
         parts = key.split("|")
         if len(parts) >= 5:
             saved_tkr = parts[0]
             saved_itv = parts[1]
             saved_pattern = parts[2]
+            
+            # 🔥 Extract proximal and distal (last two parts)
             try:
-                saved_prox = float(parts[3])
-                saved_dist = float(parts[4])
-            except ValueError:
+                saved_prox = float(parts[-2])
+                saved_dist = float(parts[-1])
+            except (ValueError, IndexError):
                 continue
             
+            # 🔥 Match symbol, timeframe, pattern AND proximal/distal within tolerance
             if saved_tkr == tkr and saved_itv == itv and saved_pattern == z.pattern_name:
                 if abs(saved_prox - z.proximal) < tolerance and abs(saved_dist - z.distal) < tolerance:
                     return True
