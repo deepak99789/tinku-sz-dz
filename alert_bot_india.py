@@ -155,6 +155,32 @@ def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
     return True
 
 
+# ==========================================================================
+# 🔥 DUPLICATE CHECK WITH TOLERANCE
+# ==========================================================================
+
+def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set) -> bool:
+    """Check if same zone already alerted (with 0.5 tolerance for stocks)"""
+    z = event["zone"]
+    tolerance = 0.5
+    for key in sent_keys:
+        parts = key.split("|")
+        if len(parts) >= 5:
+            saved_tkr = parts[0]
+            saved_itv = parts[1]
+            saved_pattern = parts[2]
+            try:
+                saved_prox = float(parts[3])
+                saved_dist = float(parts[4])
+            except ValueError:
+                continue
+            
+            if saved_tkr == tkr and saved_itv == itv and saved_pattern == z.pattern_name:
+                if abs(saved_prox - z.proximal) < tolerance and abs(saved_dist - z.distal) < tolerance:
+                    return True
+    return False
+
+
 def main():
     logger.info("=" * 60)
     logger.info("🇮🇳 NIFTY 500 SCANNER STARTED (REAL DATA)")
@@ -219,8 +245,15 @@ def main():
             
             for e in events:
                 key = alert_key(tkr, itv, e)
+                
+                # 🔥 TOLERANCE CHECK
+                if is_duplicate_with_tolerance(tkr, itv, e, sent_keys):
+                    logger.info(f"  ⏭️ Skipping duplicate (tolerance): {key}")
+                    continue
+                
                 if not should_send_alert(key, sent_keys, last_alert_time):
                     continue
+                    
                 sent_keys.add(key)
                 last_alert_time[key] = time.time()
                 
