@@ -15,7 +15,7 @@ Each pattern is detected in 4 variants, exactly mirroring the Pine logic:
     - std     : 1 base candle  (base = candle 1 bar back)
     - ext     : 1 base candle  (base = candle 2 bars back, leg-out can span 2 candles)
     - 2base   : 2 base candles (base = candles 1 & 2 bars back)
-    - 3base   : 3 base candles (base = candles 1, 2 & 3 bars back)  <-- NEW
+    - 3base   : 3 base candles (base = candles 1, 2 & 3 bars back)
 
 A "base_count_filter" lets you restrict detection to only 1, 2, 3 base-candle
 patterns, or "All" of them - same as the Pine Script dropdown input.
@@ -51,18 +51,18 @@ def wilder_atr(df: pd.DataFrame, length: int = 14) -> pd.Series:
 
 @dataclass
 class Zone:
-    start_bar: int          # box left edge (base candle) - used only for chart drawing
+    start_bar: int
     end_bar: int
     proximal: float
     distal: float
     target: float
     is_supply: bool
     pattern_name: str
-    base_count: int = 1        # 1, 2, or 3 base candles
-    legout_count: int = 1      # 1 (std/2base/3base) or 2 (ext variant spans 2 candles)
-    trigger_bar: int = -1    # bar the pattern was confirmed on; lifecycle checks only begin AFTER this bar (matches Pine's `bar_index > start_bar` gate)
-    status: str = "active"       # active | sl | tp
-    activated: bool = False       # price has entered the zone
+    base_count: int = 1
+    legout_count: int = 1
+    trigger_bar: int = -1
+    status: str = "active"
+    activated: bool = False
     pre_alerted: bool = False
 
 
@@ -122,8 +122,6 @@ def detect_patterns(
     allow_3 = base_count_filter in ("All", "3")
 
     def build(direction_leg_in_green, direction_leg_out_green, allow1, allow2, allow3):
-        """direction_leg_in_green: True for RBD/RBR (green leg-in), False for DBD/DBR (red leg-in)
-           direction_leg_out_green: True for DBR/RBR (green leg-out), False for RBD/DBD (red leg-out)"""
         legin1 = is_p2_green if direction_leg_in_green else is_p2_red
         legin_ext = is_p3_green if direction_leg_in_green else is_p3_red
         legin_3 = is_p4_green if direction_leg_in_green else is_p4_red
@@ -157,7 +155,6 @@ def detect_patterns(
     dbr_std, dbr_ext, dbr_2b, dbr_3b = build(False, True, allow_1, allow_2, allow_3)
     rbr_std, rbr_ext, rbr_2b, rbr_3b = build(True, True, allow_1, allow_2, allow_3)
 
-    # --- wick-safety check + is_XXX combination ---
     def combine_supply(std, ext, b2, b3):
         base_high = np.where(
             b3, np.maximum(np.maximum(h3, h2), h1),
@@ -186,7 +183,6 @@ def detect_patterns(
     d["dbr_2base"], d["dbr_3base"], d["dbr_ext"] = dbr_2b, dbr_3b, dbr_ext
     d["rbr_2base"], d["rbr_3base"], d["rbr_ext"] = rbr_2b, rbr_3b, rbr_ext
 
-    # store shifted OHLC needed later for zone construction
     for n, s in [("o1", p1_o), ("c1", p1_c), ("o2", p2_o), ("c2", p2_c),
                  ("o3", p3_o), ("c3", p3_c), ("h1", h1), ("h2", h2), ("h3", h3),
                  ("l1", l1), ("l2", l2), ("l3", l3)]:
@@ -225,7 +221,7 @@ def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
         tag = ""
 
     risk = distal - proximal
-    target = proximal - risk * 3.0  # rr_target filled in by caller via scaling below
+    target = proximal - risk * 3.0
     name = ("RBD" if is_rbd else "DBD") + tag
     base_count = 3 if is3 else (2 if is2 else 1)
     legout_count = 2 if (isExt and not is3 and not is2) else 1
@@ -234,7 +230,7 @@ def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
         end_bar=i,
         proximal=proximal,
         distal=distal,
-        target=target,   # placeholder, corrected by caller with actual rr_target
+        target=target,
         is_supply=True,
         pattern_name=name,
         base_count=base_count,
@@ -296,10 +292,6 @@ def track_zones(
     rr_target: float,
     pre_entry_mult: float,
 ) -> DetectionResult:
-    """
-    Sequential zone lifecycle tracker - mirrors the Pine `for` loop over
-    active_boxes each bar: pre-alert -> entered -> SL / Target.
-    """
     n = len(d)
     active: List[Zone] = []
     all_zones: List[Zone] = []
@@ -310,8 +302,8 @@ def track_zones(
     highs = d["High"].values
     lows = d["Low"].values
 
-    # 🔥 Track zone keys to prevent duplicates
-    seen_zone_keys = set()
+    # 🔥 STRONG DUPLICATE DETECTION - 0.5 tolerance
+    seen_zones = {}  # key -> (proximal, distal)
 
     for i in range(n):
         atr_buffer = atr_series.iloc[i] * atr_multiplier if not np.isnan(atr_series.iloc[i]) else 0.0
@@ -321,12 +313,17 @@ def track_zones(
         if d["is_RBD"].iloc[i] or d["is_DBD"].iloc[i]:
             z = _zone_from_supply_row(d, i, atr_buffer)
             
-            # 🔥 FIX: Check if similar zone already exists
-            zone_key = f"{z.pattern_name}|{round(z.proximal, 2)}|{round(z.distal, 2)}"
-            if zone_key in seen_zone_keys:
-                # Duplicate zone, skip
+            # 🔥 Check duplicate with 0.5 tolerance
+            is_dup = False
+            for key, (p, d_val) in seen_zones.items():
+                if abs(p - z.proximal) < 0.5 and abs(d_val - z.distal) < 0.5:
+                    is_dup = True
+                    break
+            
+            if is_dup:
                 continue
-            seen_zone_keys.add(zone_key)
+                
+            seen_zones[f"{z.pattern_name}|{round(z.proximal, 2)}"] = (z.proximal, z.distal)
             
             risk = z.distal - z.proximal
             z.target = z.proximal - risk * rr_target
@@ -338,12 +335,17 @@ def track_zones(
         if d["is_DBR"].iloc[i] or d["is_RBR"].iloc[i]:
             z = _zone_from_demand_row(d, i, atr_buffer)
             
-            # 🔥 FIX: Check if similar zone already exists
-            zone_key = f"{z.pattern_name}|{round(z.proximal, 2)}|{round(z.distal, 2)}"
-            if zone_key in seen_zone_keys:
-                # Duplicate zone, skip
+            # 🔥 Check duplicate with 0.5 tolerance
+            is_dup = False
+            for key, (p, d_val) in seen_zones.items():
+                if abs(p - z.proximal) < 0.5 and abs(d_val - z.distal) < 0.5:
+                    is_dup = True
+                    break
+            
+            if is_dup:
                 continue
-            seen_zone_keys.add(zone_key)
+                
+            seen_zones[f"{z.pattern_name}|{round(z.proximal, 2)}"] = (z.proximal, z.distal)
             
             risk = z.proximal - z.distal
             z.target = z.proximal + risk * rr_target
@@ -399,15 +401,15 @@ def track_zones(
                 z.status = "sl"
                 z.end_bar = i
                 events.append({"bar": i, "type": "sl_hit", "zone": z})
-                continue  # removed from active
+                continue
             elif target_hit:
                 tp_count += 1
                 z.status = "tp"
                 z.end_bar = i
                 events.append({"bar": i, "type": "tp_hit", "zone": z})
-                continue  # removed from active
+                continue
             else:
-                z.end_bar = i  # visual right-extension, still active
+                z.end_bar = i
                 still_active.append(z)
 
         active = still_active
@@ -423,7 +425,6 @@ def run_full_pipeline(
     pre_entry_mult: float = 1.5,
     base_count_filter: str = "All",
 ) -> DetectionResult:
-    """One-call convenience wrapper matching the Pine Script inputs 1:1."""
     d = detect_patterns(df, base_count_filter=base_count_filter)
     atr_series = wilder_atr(df, atr_length)
     result = track_zones(d, atr_series, atr_multiplier, rr_target, pre_entry_mult)
