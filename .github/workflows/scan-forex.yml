@@ -32,23 +32,15 @@ jobs:
       - name: Save state
         run: |
           git config user.name "zone-scanner-bot"
-          git config user.email "actions@github.com"
+          git config.user.email "actions@github.com"
           
-          # 🔥 Check if state file exists
-          if [ -f "alert_state_forex.json" ]; then
-            echo "📂 State file found, adding..."
-            git add -f alert_state_forex.json
-          else
-            echo "⚠️ State file not found, creating empty..."
-            echo "[]" > alert_state_forex.json
-            git add -f alert_state_forex.json
-          fi
+          git pull origin main --rebase || echo "⚠️ Pull failed"
+          git add -f alert_state_forex.json
           
           if git diff --cached --quiet; then
             echo "📂 No state changes to commit"
           else
             git commit -m "Update Forex state [skip ci]"
-            git pull origin main --rebase || echo "⚠️ Pull failed"
-            git push origin main --force || echo "⚠️ Push failed"
+            git push origin main --force-with-lease || echo "⚠️ Push failed"
             echo "✅ State updated and pushed"
           fi
