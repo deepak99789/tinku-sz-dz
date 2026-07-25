@@ -15,7 +15,7 @@ import yfinance as yf
 
 from pattern_engine import run_full_pipeline
 from telegram_utils import send_telegram_message, send_telegram_photo
-from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
+from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS, get_rounding
 
 # ==========================================================================
 # ⚙️ CONFIG - SUPPORTED TIMEFRAMES (REAL DATA)
@@ -77,6 +77,21 @@ CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID_US", "")
 
 PERIOD_LADDER = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
+# ==========================================================================
+# 🔥 RUN CACHE - Prevent duplicates within same run
+# ==========================================================================
+
+RUN_CACHE = set()
+
+def is_duplicate_in_run(tkr: str, itv: str, event: dict) -> bool:
+    z = event["zone"]
+    decimals = get_rounding(tkr)
+    key = f"{tkr}|{itv}|{z.pattern_name}|{round(z.proximal, decimals)}|{round(z.distal, decimals)}"
+    if key in RUN_CACHE:
+        return True
+    RUN_CACHE.add(key)
+    return False
+
 
 def get_yf_interval(itv: str) -> str:
     return YF_INTERVAL_MAP.get(itv, itv)
@@ -134,15 +149,9 @@ def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
     return True
 
 
-# ==========================================================================
-# 🔥 DUPLICATE CHECK WITH TOLERANCE - FIXED
-# ==========================================================================
-
 def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set) -> bool:
-    """Check if same zone already alerted (with 0.5 tolerance for stocks)"""
     z = event["zone"]
     tolerance = 0.5
-    
     for key in sent_keys:
         parts = key.split("|")
         if len(parts) >= 5:
@@ -154,7 +163,6 @@ def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set)
                 saved_dist = float(parts[-1])
             except (ValueError, IndexError):
                 continue
-            
             if saved_tkr == tkr and saved_itv == itv and saved_pattern == z.pattern_name:
                 if abs(saved_prox - z.proximal) < tolerance and abs(saved_dist - z.distal) < tolerance:
                     return True
@@ -162,6 +170,9 @@ def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set)
 
 
 def main():
+    global RUN_CACHE
+    RUN_CACHE = set()
+    
     logger.info("=" * 60)
     logger.info("🇺🇸 NASDAQ 100 SCANNER STARTED (REAL DATA)")
     logger.info(f"📊 Total Symbols: {len(TICKERS)}")
@@ -203,11 +214,14 @@ def main():
                 events = [e for e in events if e["bar"] == last_bar]
             
             for e in events:
+                if is_duplicate_in_run(tkr, itv, e):
+                    logger.info(f"  ⏭️ Skipping duplicate in run: {tkr} {itv} {e['type']}")
+                    continue
+                
                 key = alert_key(tkr, itv, e)
                 
-                # 🔥 TOLERANCE CHECK
                 if is_duplicate_with_tolerance(tkr, itv, e, sent_keys):
-                    logger.info(f"  ⏭️ Skipping duplicate (tolerance): {key}")
+                    logger.info(f"  ⏭️ Skipping duplicate (state): {key}")
                     continue
                 
                 if not should_send_alert(key, sent_keys, last_alert_time):
