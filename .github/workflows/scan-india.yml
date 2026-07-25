@@ -34,6 +34,9 @@ jobs:
           git config user.name "zone-scanner-bot"
           git config user.email "actions@github.com"
           
+          # 🔥 Force pull to avoid conflicts
+          git pull origin main --rebase || echo "⚠️ Pull failed"
+          
           # 🔥 Force add state file
           git add -f alert_state_india.json
           
@@ -41,7 +44,7 @@ jobs:
             echo "📂 No state changes to commit"
           else
             git commit -m "Update India state [skip ci]"
-            git pull origin main --rebase || echo "⚠️ Pull failed"
-            git push origin main --force || echo "⚠️ Push failed"
+            # 🔥 Force push with lease
+            git push origin main --force-with-lease || echo "⚠️ Push failed"
             echo "✅ State updated and pushed"
           fi
