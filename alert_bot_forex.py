@@ -59,6 +59,10 @@ ONLY_LATEST_BAR = True
 DEBOUNCE_SECONDS = 3600
 BATCH_SIZE = 5
 
+# ==========================================================================
+# 🔥 STATE FILE - EXACT PATH (MATCH WITH GITHUB)
+# ==========================================================================
+
 STATE_FILE = "alert_state_forex.json"
 MAX_STATE_KEYS = 5000
 
@@ -76,6 +80,10 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID_FOREX", "")
 
 PERIOD_LADDER = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
+
+# ==========================================================================
+# 🔥 RUN CACHE - Prevent duplicates within same run
+# ==========================================================================
 
 RUN_CACHE = set()
 
@@ -110,16 +118,23 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+# ==========================================================================
+# 🔥 STATE FILE FUNCTIONS - FIXED
+# ==========================================================================
+
 def load_state() -> set:
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE) as f:
                 data = json.load(f)
                 if isinstance(data, list):
+                    logger.info(f"📂 Loaded {len(data)} keys from {STATE_FILE}")
                     return set(data)
                 return set()
-        except Exception:
+        except Exception as e:
+            logger.warning(f"⚠️ Error loading state: {e}")
             return set()
+    logger.info(f"📂 No state file found: {STATE_FILE}")
     return set()
 
 
@@ -130,7 +145,12 @@ def save_state(keys: set) -> None:
             json.dump(keys_list, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
-        logger.info(f"✅ State saved: {len(keys_list)} keys")
+        logger.info(f"✅ State saved: {len(keys_list)} keys to {STATE_FILE}")
+        
+        # 🔥 Debug - Print first 3 keys
+        for i, key in enumerate(keys_list[:3]):
+            logger.info(f"  📝 {i+1}. {key}")
+            
     except Exception as e:
         logger.error(f"❌ Error saving state: {e}")
 
