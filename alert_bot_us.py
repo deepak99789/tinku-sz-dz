@@ -15,7 +15,7 @@ import yfinance as yf
 
 from pattern_engine import run_full_pipeline
 from telegram_utils import send_telegram_message, send_telegram_photo
-from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS, get_rounding
+from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
 
 # ==========================================================================
 # ⚙️ CONFIG - SUPPORTED TIMEFRAMES (REAL DATA)
@@ -77,16 +77,11 @@ CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID_US", "")
 
 PERIOD_LADDER = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
-# ==========================================================================
-# 🔥 RUN CACHE - Prevent duplicates within same run
-# ==========================================================================
-
 RUN_CACHE = set()
 
 def is_duplicate_in_run(tkr: str, itv: str, event: dict) -> bool:
     z = event["zone"]
-    decimals = get_rounding(tkr)
-    key = f"{tkr}|{itv}|{z.pattern_name}|{round(z.proximal, decimals)}|{round(z.distal, decimals)}"
+    key = f"{tkr}|{itv}|{int(z.proximal)}"
     if key in RUN_CACHE:
         return True
     RUN_CACHE.add(key)
@@ -151,21 +146,17 @@ def should_send_alert(key: str, sent_keys: set, last_alert_time: dict) -> bool:
 
 def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set) -> bool:
     z = event["zone"]
-    tolerance = 0.5
     for key in sent_keys:
         parts = key.split("|")
-        if len(parts) >= 5:
+        if len(parts) >= 3:
             saved_tkr = parts[0]
             saved_itv = parts[1]
-            saved_pattern = parts[2]
             try:
-                saved_prox = float(parts[-2])
-                saved_dist = float(parts[-1])
+                saved_prox = int(float(parts[2]))
             except (ValueError, IndexError):
                 continue
-            if saved_tkr == tkr and saved_itv == itv and saved_pattern == z.pattern_name:
-                if abs(saved_prox - z.proximal) < tolerance and abs(saved_dist - z.distal) < tolerance:
-                    return True
+            if saved_tkr == tkr and saved_itv == itv and abs(saved_prox - int(z.proximal)) < 2:
+                return True
     return False
 
 
