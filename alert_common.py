@@ -16,21 +16,10 @@ ALERT_ICONS = {
 }
 
 
-def get_rounding(tkr: str) -> int:
-    """Market ke hisaab se decimal places for key generation"""
-    if "=X" in tkr:  # Forex
-        return 2
-    if "BTC" in tkr or "ETH" in tkr or "USDT" in tkr:  # Crypto
-        return 2
-    if "^" in tkr:  # Indices
-        return 0
-    return 1  # Stocks
-
-
 def alert_key(tkr: str, itv: str, event: dict) -> str:
+    """🔥 FINAL: Sirf Symbol + Timeframe + Integer Proximal"""
     z = event["zone"]
-    decimals = get_rounding(tkr)
-    return f"{tkr}|{itv}|{z.pattern_name}|{round(z.proximal, decimals)}|{round(z.distal, decimals)}"
+    return f"{tkr}|{itv}|{int(z.proximal)}"
 
 
 def build_alert_text(tkr: str, itv: str, event: dict, df, rr_target: float) -> str:
