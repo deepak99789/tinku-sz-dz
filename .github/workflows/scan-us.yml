@@ -32,15 +32,21 @@ jobs:
       - name: Save state
         run: |
           git config user.name "zone-scanner-bot"
-          git config user.email "actions@github.com"
+          git config.user.email "actions@github.com"
           
-          git pull origin main --rebase || echo "⚠️ Pull failed"
+          # 🔥 Agar file nahi hai toh create karo
+          if [ ! -f "alert_state_us.json" ]; then
+            echo "[]" > alert_state_us.json
+            echo "📂 Created empty state file"
+          fi
+          
+          git pull origin main --rebase || echo "⚠️ Pull failed, continuing"
           git add -f alert_state_us.json
           
           if git diff --cached --quiet; then
             echo "📂 No state changes to commit"
           else
             git commit -m "Update US state [skip ci]"
-            git push origin main --force-with-lease || echo "⚠️ Push failed"
+            git push origin main --force || echo "⚠️ Push failed"
             echo "✅ State updated and pushed"
           fi
