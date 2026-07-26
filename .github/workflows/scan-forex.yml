@@ -34,11 +34,15 @@ jobs:
           git config user.name "zone-scanner-bot"
           git config.user.email "actions@github.com"
           
-          # 🔥 Agar file nahi hai toh create karo
+          # 🔥 Check if state file exists, create if missing
           if [ ! -f "alert_state_forex.json" ]; then
             echo "[]" > alert_state_forex.json
             echo "📂 Created empty state file"
           fi
+          
+          # 🔥 Show current content before update
+          echo "📂 Current state file content:"
+          cat alert_state_forex.json
           
           git pull origin main --rebase || echo "⚠️ Pull failed, continuing"
           git add -f alert_state_forex.json
@@ -50,3 +54,7 @@ jobs:
             git push origin main --force || echo "⚠️ Push failed"
             echo "✅ State updated and pushed"
           fi
+          
+          # 🔥 Show updated content after push
+          echo "📂 Updated state file content:"
+          cat alert_state_forex.json
