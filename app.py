@@ -59,11 +59,10 @@ STATUS_LABELS = {
 }
 
 # ==========================================================================
-# 🔥 COMPLETE NIFTY 500 STOCK LIST (500+ STOCKS)
+# 🔥 NIFTY 50 STOCKS
 # ==========================================================================
 
-NIFTY_500_STOCKS = [
-    # ===== NIFTY 50 =====
+NIFTY_50 = [
     "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
     "SBIN.NS", "ITC.NS", "LT.NS", "AXISBANK.NS", "KOTAKBANK.NS",
     "BAJFINANCE.NS", "HINDUNILVR.NS", "MARUTI.NS", "SUNPHARMA.NS",
@@ -74,8 +73,13 @@ NIFTY_500_STOCKS = [
     "BRITANNIA.NS", "HINDALCO.NS", "EICHERMOT.NS", "BAJAJFINSV.NS", "ADANIGREEN.NS",
     "ADANIENT.NS", "VEDL.NS", "TATASTEEL.NS", "JINDALSTEL.NS", "M&M.NS",
     "BANKBARODA.NS", "PNB.NS", "CANBK.NS", "INDUSINDBK.NS", "YESBANK.NS",
-    
-    # ===== NIFTY NEXT 50 =====
+]
+
+# ==========================================================================
+# 🔥 NIFTY 100 STOCKS (NIFTY 50 + NIFTY NEXT 50)
+# ==========================================================================
+
+NIFTY_100 = NIFTY_50 + [
     "FEDERALBNK.NS", "IDFCFIRSTB.NS", "RBLBANK.NS", "AUBANK.NS",
     "MPHASIS.NS", "COFORGE.NS", "LTTS.NS", "PERSISTENT.NS", "ZENSARTECH.NS",
     "CIPLA.NS", "GLENMARK.NS", "AUROPHARMA.NS", "LUPIN.NS", "TORNTPHARM.NS",
@@ -89,8 +93,13 @@ NIFTY_500_STOCKS = [
     "SUNTV.NS", "PVRINOX.NS", "ZEEL.NS", "NETWORK18.NS", "HAL.NS", "BEL.NS",
     "BHEL.NS", "SIEMENS.NS", "ABB.NS", "SUZLON.NS", "TATACHEM.NS", "UPL.NS",
     "PIIND.NS", "SRTRANSFIN", "TRENT.NS", "UBL.NS", "VOLTAS.NS", "ZYDUSLIFE.NS",
-    
-    # ===== NIFTY 500 ADDITIONAL STOCKS (300+) =====
+]
+
+# ==========================================================================
+# 🔥 NIFTY 500 STOCKS (COMPLETE LIST)
+# ==========================================================================
+
+NIFTY_500 = NIFTY_100 + [
     "3MINDIA.NS", "AARTIIND.NS", "ABCAPITAL.NS", "ACC.NS", "ALKEM.NS",
     "AMBER.NS", "AMBUJACEM.NS", "ANGELONE.NS", "ASTRAL.NS", "ATUL.NS",
     "BALRAMCHIN.NS", "BANDHANBNK.NS", "BATAINDIA.NS", "BERGEPAINT.NS",
@@ -106,8 +115,7 @@ NIFTY_500_STOCKS = [
     "MGL.NS", "MUTHOOTFIN.NS", "NATIONALUM.NS", "NAUKRI.NS",
     "NAVINFLUOR.NS", "PAGEIND.NS", "PEL.NS", "RAMCOCEM.NS",
     "SHREECEM.NS", "ZYDUSLIFE.NS",
-    
-    # ===== ADDITIONAL NIFTY 500 =====
+    # Additional NIFTY 500
     "AARTIIND.NS", "ABFRL.NS", "ACC.NS", "ADANIENT.NS", "ADANIGREEN.NS",
     "ADANIPORTS.NS", "ADANIPOWER.NS", "ALKEM.NS", "AMBUJACEM.NS", "ANGELONE.NS",
     "APOLLOHOSP.NS", "APOLLOTYRE.NS", "ASHOKLEY.NS", "ASTRAL.NS", "ATUL.NS",
@@ -144,8 +152,7 @@ NIFTY_500_STOCKS = [
     "TRENT.NS", "TVSMOTOR.NS", "UBL.NS", "ULTRACEMCO.NS", "UNIONBANK.NS",
     "UPL.NS", "VEDL.NS", "VOLTAS.NS", "WIPRO.NS", "YESBANK.NS",
     "ZEEL.NS", "ZENSARTECH.NS", "ZYDUSLIFE.NS",
-    
-    # ===== FINAL 500 COMPLETION =====
+    # Final additions
     "ABB.NS", "ABBOTINDIA.NS", "ABFRL.NS", "ACC.NS", "ADANIENT.NS",
     "ADANIGREEN.NS", "ADANIPORTS.NS", "ADANIPOWER.NS", "ALKEM.NS",
     "AMBER.NS", "AMBUJACEM.NS", "ANGELONE.NS", "APOLLOHOSP.NS", "APOLLOTYRE.NS",
@@ -186,13 +193,21 @@ NIFTY_500_STOCKS = [
 ]
 
 # ==========================================================================
-# 🔥 MARKET PRESETS
+# 🔥 MARKET PRESETS - NIFTY 50, NIFTY 100, NIFTY 500 ADDED
 # ==========================================================================
 
 MARKET_PRESETS = {
+    "🇮🇳 NIFTY 50": {
+        "suffix_hint": "e.g. RELIANCE.NS, TCS.NS",
+        "tickers": NIFTY_50,
+    },
+    "🇮🇳 NIFTY 100": {
+        "suffix_hint": "e.g. RELIANCE.NS, TCS.NS",
+        "tickers": NIFTY_100,
+    },
     "🇮🇳 NIFTY 500": {
         "suffix_hint": "e.g. RELIANCE.NS, TCS.NS",
-        "tickers": NIFTY_500_STOCKS,
+        "tickers": NIFTY_500,
     },
     "🇺🇸 US Stocks / Index": {
         "suffix_hint": "e.g. AAPL, TSLA, ^GSPC, ^DJI",
