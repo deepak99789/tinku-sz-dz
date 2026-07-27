@@ -35,7 +35,7 @@ jobs:
       - name: Save state
         run: |
           git config user.name "zone-scanner-bot"
-          git config.user.email "actions@github.com"
+          git config user.email "actions@github.com"   # 🔥 FIXED: space not dot
           
           # 🔥 Create file if missing
           if [ ! -f "alert_state_forex.json" ]; then
