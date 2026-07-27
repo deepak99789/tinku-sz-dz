@@ -60,7 +60,7 @@ DEBOUNCE_SECONDS = 3600
 BATCH_SIZE = 5
 
 # ==========================================================================
-# 🔥 STATE FILE - EXACT PATH (MATCH WITH GITHUB)
+# 🔥 STATE FILE - FIXED
 # ==========================================================================
 
 STATE_FILE = "alert_state_forex.json"
@@ -119,7 +119,7 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
 
 
 # ==========================================================================
-# 🔥 STATE FILE FUNCTIONS - FIXED
+# 🔥 STATE FILE FUNCTIONS - FIXED WITH FORCE SAVE
 # ==========================================================================
 
 def load_state() -> set:
@@ -141,15 +141,22 @@ def load_state() -> set:
 def save_state(keys: set) -> None:
     keys_list = list(keys)[-MAX_STATE_KEYS:]
     try:
+        # 🔥 Force save with absolute path
         with open(STATE_FILE, "w") as f:
             json.dump(keys_list, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
-        logger.info(f"✅ State saved: {len(keys_list)} keys to {STATE_FILE}")
         
-        # 🔥 Debug - Print first 3 keys
-        for i, key in enumerate(keys_list[:3]):
-            logger.info(f"  📝 {i+1}. {key}")
+        # 🔥 Verify file was written
+        if os.path.exists(STATE_FILE):
+            with open(STATE_FILE, "r") as f:
+                data = json.load(f)
+                logger.info(f"✅ State saved: {len(data)} keys to {STATE_FILE}")
+                # 🔥 Print first 3 keys for debug
+                for i, key in enumerate(data[:3]):
+                    logger.info(f"  📝 {i+1}. {key}")
+        else:
+            logger.error(f"❌ State file not found after save!")
             
     except Exception as e:
         logger.error(f"❌ Error saving state: {e}")
@@ -196,6 +203,8 @@ def main():
         sys.exit(1)
 
     sent_keys = load_state()
+    logger.info(f"📂 Loaded {len(sent_keys)} previously alerted keys")
+    
     last_alert_time = {}
     new_count = 0
     total_events = 0
@@ -259,6 +268,7 @@ def main():
         if i + BATCH_SIZE < len(pending_alerts):
             time.sleep(3)
 
+    # 🔥 Force save state
     save_state(sent_keys)
     
     logger.info("📊 FOREX + COMMODITY + CRYPTO + INDICES SCAN COMPLETE (REAL DATA)")
