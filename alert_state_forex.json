@@ -1,9 +1,9 @@
 [
-  "^GDAXI|15m|25521",
-  "CHFJPY=X|90m|200",
   "^GDAXI|90m|25492",
+  "BTC-USD|30m|64791",
   "^DJI|90m|51947",
   "BTC-USD|5m|64823",
-  "BTC-USD|30m|64791",
+  "^GDAXI|15m|25521",
+  "CHFJPY=X|90m|200",
   "EURCAD=X|90m|1"
 ]
