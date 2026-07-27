@@ -27,21 +27,23 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID_FOREX: ${{ secrets.TELEGRAM_CHAT_ID_FOREX }}
-        run: python alert_bot_forex.py
+        run: |
+          python alert_bot_forex.py
+          echo "📂 State file content after run:"
+          cat alert_state_forex.json || echo "File not found"
 
       - name: Save state
         run: |
           git config user.name "zone-scanner-bot"
           git config.user.email "actions@github.com"
           
-          # 🔥 Check if state file exists, create if missing
+          # 🔥 Create file if missing
           if [ ! -f "alert_state_forex.json" ]; then
             echo "[]" > alert_state_forex.json
             echo "📂 Created empty state file"
           fi
           
-          # 🔥 Show current content before update
-          echo "📂 Current state file content:"
+          echo "📂 Before commit:"
           cat alert_state_forex.json
           
           git pull origin main --rebase || echo "⚠️ Pull failed, continuing"
@@ -55,6 +57,5 @@ jobs:
             echo "✅ State updated and pushed"
           fi
           
-          # 🔥 Show updated content after push
-          echo "📂 Updated state file content:"
+          echo "📂 After push:"
           cat alert_state_forex.json
