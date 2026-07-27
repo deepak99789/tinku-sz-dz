@@ -1,6 +1,8 @@
 [
-  "BTC-USD|30m|64791",
-  "BTC-USD|5m|64823",
   "^GDAXI|90m|25492",
+  "BTC-USD|30m|64791",
+  "^DJI|90m|51947",
+  "CHFJPY=X|90m|200",
+  "BTC-USD|5m|64823",
   "EURCAD=X|90m|1"
 ]
