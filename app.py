@@ -302,9 +302,52 @@ with settings_box:
 
     st.divider()
 
+    # 🔥 TIME PERIOD QUICK SELECT
+    st.markdown("**⏰ Custom Time Period**")
+    time_col1, time_col2, time_col3 = st.columns([1.5, 2.5, 1])
+    
+    with time_col1:
+        time_period = st.radio(
+            "Time Range",
+            ["📅 Today", "📅 Last 2 Days", "📅 1 Week", "📊 Custom"],
+            index=3,
+            horizontal=False,
+        )
+    
+    with time_col2:
+        if time_period == "📅 Today":
+            period_display = "1d"
+            period_help = "Today's data only"
+        elif time_period == "📅 Last 2 Days":
+            period_display = "5d"
+            period_help = "Last 2 business days"
+        elif time_period == "📅 1 Week":
+            period_display = "1mo"
+            period_help = "Last 1 week of data"
+        else:  # Custom
+            period_display = st.selectbox(
+                "Select custom period",
+                PERIOD_OPTIONS,
+                index=4,
+                help="Choose any period for scanning"
+            )
+            period_help = f"Custom: {period_display}"
+        
+        st.caption(f"🔍 Scanning: {period_help}")
+    
+    with time_col3:
+        if st.button("📊 Scan Now", use_container_width=True):
+            st.session_state["force_scan"] = True
+            st.rerun()
+    
+    # Use the selected period for scanning
+    period = period_display
+    
+    st.divider()
+
     row2_c1, row2_c2, row2_c3, row2_c4, row2_c5, row2_c6 = st.columns([1, 1, 1, 1, 1, 1.4])
     with row2_c1:
-        period = st.selectbox("History Period", PERIOD_OPTIONS, index=4)
+        st.caption("Period: " + period)
     with row2_c2:
         atr_length = st.number_input("ATR Length", min_value=1, value=14)
     with row2_c3:
@@ -344,7 +387,13 @@ with settings_box:
     if auto_scan_on and not AUTOREFRESH_AVAILABLE:
         st.warning("⚠️ `streamlit-autorefresh` package required for auto-scan.")
 
+    # Main scan button or triggered by time period quick select
     run_btn = st.button("🔄 Fetch & Scan", type="primary", use_container_width=True)
+    
+    # Check if scan was triggered by time period selector
+    if "force_scan" in st.session_state and st.session_state.get("force_scan"):
+        run_btn = True
+        st.session_state["force_scan"] = False  # Reset flag
 
 if auto_scan_on and AUTOREFRESH_AVAILABLE:
     st_autorefresh(interval=int(autoscan_interval * 1000), key="autoscan_timer")
