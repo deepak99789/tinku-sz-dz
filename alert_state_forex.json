@@ -1,18 +1,18 @@
 [
-  "EURCAD=X|90m|1",
   "CHFJPY=X|90m|200",
-  "^GDAXI|15m|25521",
-  "GC=F|5m|4072",
-  "NZDCHF=X|30m|0",
   "^GDAXI|90m|25492",
-  "BTC-USD|15m|63385",
+  "BTC-USD|5m|64892",
+  "NZDCHF=X|30m|0",
   "BTC-USD|5m|63442",
+  "BTC-USD|30m|64791",
+  "^GDAXI|15m|25521",
   "^GDAXI|30m|25511",
   "SI=F|60m|57",
-  "^N225|15m|64956",
   "^DJI|90m|51947",
-  "BTC-USD|30m|64791",
-  "BTC-USD|5m|64823",
-  "BTC-USD|5m|64892",
-  "^GDAXI|5m|25513"
+  "^N225|15m|64956",
+  "BTC-USD|15m|63385",
+  "GC=F|5m|4072",
+  "EURCAD=X|90m|1",
+  "^GDAXI|5m|25513",
+  "BTC-USD|5m|64823"
 ]
