@@ -36,7 +36,7 @@ INTERVAL_OPTIONS = [
     "1d", "5d", "1wk", "1mo", "3mo"
 ]
 
-PERIOD_OPTIONS = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
+PERIOD_OPTIONS = ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
 YF_INTERVAL_MAP_APP = {
     "5m": "5m", "15m": "15m", "30m": "30m",
@@ -48,7 +48,7 @@ YF_INTERVAL_MAP_APP = {
 PERIOD_BY_INTERVAL = {
     "5m": "1mo", "15m": "1mo", "30m": "1mo",
     "60m": "1mo", "90m": "1mo",
-    "1d": "5y", "5d": "5y",
+    "1d": "1mo", "5d": "5y",  # 1d uses 1mo data, 5d uses 5y data
     "1wk": "10y", "1mo": "10y", "3mo": "10y",
 }
 
