@@ -345,7 +345,7 @@ with settings_box:
     
     st.divider()
 
-    row2_c1, row2_c2, row2_c3, row2_c4, row2_c5, row2_c6 = st.columns([1, 1, 1, 1, 1, 1.4])
+    row2_c1, row2_c2, row2_c3, row2_c4, row2_c5, row2_c6, row2_c7 = st.columns([1, 1, 1, 1, 1, 1.2, 1.2])
     with row2_c1:
         st.caption("Period: " + period)
     with row2_c2:
@@ -358,6 +358,11 @@ with settings_box:
         pre_entry_mult = st.number_input("Alert Dist (x ATR)", min_value=0.0, value=1.5, step=0.1)
     with row2_c6:
         base_count_filter = st.selectbox("Base Candle Count", ["All", "1", "2", "3"], index=0)
+    with row2_c7:
+        legout_count_filter = st.selectbox(
+            "Legout Candle Count", ["All", "1", "2", "3"], index=0,
+            help="Sirf wahi zones dikhao jinka legout candle count is value ke barabar ho.",
+        )
 
     st.divider()
 
@@ -659,7 +664,11 @@ if "combo_results" in st.session_state:
         result = combo_results[chosen_key]["result"]
         ticker = chosen_key[0]
 
-        zones_filtered = [z for z in result.all_zones if z.status in allowed_status]
+        zones_filtered = [
+            z for z in result.all_zones
+            if z.status in allowed_status
+            and (legout_count_filter == "All" or z.legout_count == int(legout_count_filter))
+        ]
 
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("SL Hits", result.sl_count)
@@ -719,6 +728,8 @@ if "combo_results" in st.session_state:
             d = data["df"]
             for z in r.all_zones:
                 if z.status not in allowed_status:
+                    continue
+                if legout_count_filter != "All" and z.legout_count != int(legout_count_filter):
                     continue
                 rows.append({
                     "Ticker": tkr,
