@@ -10,6 +10,7 @@ TradingView Pine Script:
     - DBD (Drop-Base-Drop)   -> Supply zone
     - DBR (Drop-Base-Rally)  -> Demand zone
     - RBR (Rally-Base-Rally) -> Demand zone
+    - BIG BASE (Supply/Demand) -> New pattern added
 
 Each pattern is detected in 4 variants, exactly mirroring the Pine logic:
     - std     : 1 base candle  (base = candle 1 bar back)
@@ -117,6 +118,39 @@ def detect_patterns(
     l_out_ext = ((p1_c - p1_o).abs() >= t_p1 * 0.6) & ((c - o).abs() >= t_c * 0.6)
     l_in_3 = (p4_c - p4_o).abs() >= t_p4 * 0.6
 
+    # ============================================================
+    # 🔥 NEW: BIG BASE PATTERN DETECTION
+    # ============================================================
+    # Type 1: Supply (RBD style)
+    #   - Candle 1 (leg-in): GREEN, body ≥ 65% of range
+    #   - Candle 2 (big base): RED, body ≥ 65% of range, Open/Close inside Candle 1's range
+    #   - Candle 3 (leg-out): RED (any body)
+    # ============================================================
+    body_p1 = (p1_c - p1_o).abs()
+    body_p2 = (p2_c - p2_o).abs()
+    body_p3 = (p3_c - p3_o).abs()
+
+    # Candle 1: GREEN, body >= 65% of range
+    legin_green_big = is_p1_green & (body_p1 >= t_p1 * 0.65)
+    # Candle 2: RED, body >= 65% of range, and inside Candle 1's range
+    big_base_red = is_p2_red & (body_p2 >= t_p2 * 0.65) & (p2_o > l1) & (p2_o < h1) & (p2_c > l1) & (p2_c < h1)
+    # Candle 3: RED (any body)
+    legout_red_any = is_p3_red
+
+    # Type 2: Demand (DBR style)
+    #   - Candle 1 (leg-in): RED, body ≥ 65% of range
+    #   - Candle 2 (big base): GREEN, body ≥ 65% of range, Open/Close inside Candle 1's range
+    #   - Candle 3 (leg-out): GREEN (any body)
+    # ============================================================
+    legin_red_big = is_p1_red & (body_p1 >= t_p1 * 0.65)
+    big_base_green = is_p2_green & (body_p2 >= t_p2 * 0.65) & (p2_o > l1) & (p2_o < h1) & (p2_c > l1) & (p2_c < h1)
+    legout_green_any = is_p3_green
+
+    # Combine conditions
+    is_big_supply = legin_green_big & big_base_red & legout_red_any
+    is_big_demand = legin_red_big & big_base_green & legout_green_any
+
+    # ----------------------------------------------------------------------
     allow_1 = base_count_filter in ("All", "1")
     allow_2 = base_count_filter in ("All", "2")
     allow_3 = base_count_filter in ("All", "3")
@@ -178,6 +212,10 @@ def detect_patterns(
     d["is_DBR"] = combine_demand(dbr_std, dbr_ext, dbr_2b, dbr_3b)
     d["is_RBR"] = combine_demand(rbr_std, rbr_ext, rbr_2b, rbr_3b)
 
+    # 🔥 Add BIG BASE columns
+    d["is_BIG_SUPPLY"] = _bool(is_big_supply)
+    d["is_BIG_DEMAND"] = _bool(is_big_demand)
+
     d["rbd_2base"], d["rbd_3base"], d["rbd_ext"] = rbd_2b, rbd_3b, rbd_ext
     d["dbd_2base"], d["dbd_3base"], d["dbd_ext"] = dbd_2b, dbd_3b, dbd_ext
     d["dbr_2base"], d["dbr_3base"], d["dbr_ext"] = dbr_2b, dbr_3b, dbr_ext
@@ -192,6 +230,25 @@ def detect_patterns(
 
 
 def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
+    # 🔥 Check if it's a BIG BASE pattern first
+    if bool(d["is_BIG_SUPPLY"].iloc[i]):
+        h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
+        proximal = h1  # Supply zone top = leg-in high
+        distal = l1 - atr_buffer  # Distal = leg-in low - buffer
+        risk = distal - proximal
+        target = proximal - risk * 3.0
+        return Zone(
+            start_bar=i - 2,
+            end_bar=i,
+            proximal=proximal,
+            distal=distal,
+            target=target,
+            is_supply=True,
+            pattern_name="BIG SUPPLY",
+            base_count=2,
+            legout_count=1,
+        )
+
     is3 = bool(d["rbd_3base"].iloc[i] or d["dbd_3base"].iloc[i])
     is2 = bool(d["rbd_2base"].iloc[i] or d["dbd_2base"].iloc[i])
     isExt = bool(d["rbd_ext"].iloc[i] or d["dbd_ext"].iloc[i])
@@ -239,6 +296,25 @@ def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
 
 
 def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
+    # 🔥 Check if it's a BIG BASE pattern first
+    if bool(d["is_BIG_DEMAND"].iloc[i]):
+        h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
+        proximal = l1  # Demand zone bottom = leg-in low
+        distal = h1 + atr_buffer  # Distal = leg-in high + buffer
+        risk = proximal - distal
+        target = proximal + risk * 3.0
+        return Zone(
+            start_bar=i - 2,
+            end_bar=i,
+            proximal=proximal,
+            distal=distal,
+            target=target,
+            is_supply=False,
+            pattern_name="BIG DEMAND",
+            base_count=2,
+            legout_count=1,
+        )
+
     is3 = bool(d["dbr_3base"].iloc[i] or d["rbr_3base"].iloc[i])
     is2 = bool(d["dbr_2base"].iloc[i] or d["rbr_2base"].iloc[i])
     isExt = bool(d["dbr_ext"].iloc[i] or d["rbr_ext"].iloc[i])
@@ -310,16 +386,56 @@ def track_zones(
         pre_dist = atr_series.iloc[i] * pre_entry_mult if not np.isnan(atr_series.iloc[i]) else 0.0
 
         # 1) new zone creation
-        if d["is_RBD"].iloc[i] or d["is_DBD"].iloc[i]:
+        # 🔥 BIG BASE patterns (priority)
+        if d["is_BIG_SUPPLY"].iloc[i]:
             z = _zone_from_supply_row(d, i, atr_buffer)
             
-            # 🔥 Check duplicate with 0.5 tolerance
             is_dup = False
             for key, (p, d_val) in seen_zones.items():
                 if abs(p - z.proximal) < 0.5 and abs(d_val - z.distal) < 0.5:
                     is_dup = True
                     break
+            if is_dup:
+                continue
+                
+            seen_zones[f"{z.pattern_name}|{round(z.proximal, 2)}"] = (z.proximal, z.distal)
             
+            risk = z.distal - z.proximal
+            z.target = z.proximal - risk * rr_target
+            z.trigger_bar = i
+            active.append(z)
+            all_zones.append(z)
+            events.append({"bar": i, "type": "zone_found", "zone": z})
+
+        if d["is_BIG_DEMAND"].iloc[i]:
+            z = _zone_from_demand_row(d, i, atr_buffer)
+            
+            is_dup = False
+            for key, (p, d_val) in seen_zones.items():
+                if abs(p - z.proximal) < 0.5 and abs(d_val - z.distal) < 0.5:
+                    is_dup = True
+                    break
+            if is_dup:
+                continue
+                
+            seen_zones[f"{z.pattern_name}|{round(z.proximal, 2)}"] = (z.proximal, z.distal)
+            
+            risk = z.proximal - z.distal
+            z.target = z.proximal + risk * rr_target
+            z.trigger_bar = i
+            active.append(z)
+            all_zones.append(z)
+            events.append({"bar": i, "type": "zone_found", "zone": z})
+
+        # Original patterns
+        if d["is_RBD"].iloc[i] or d["is_DBD"].iloc[i]:
+            z = _zone_from_supply_row(d, i, atr_buffer)
+            
+            is_dup = False
+            for key, (p, d_val) in seen_zones.items():
+                if abs(p - z.proximal) < 0.5 and abs(d_val - z.distal) < 0.5:
+                    is_dup = True
+                    break
             if is_dup:
                 continue
                 
@@ -335,13 +451,11 @@ def track_zones(
         if d["is_DBR"].iloc[i] or d["is_RBR"].iloc[i]:
             z = _zone_from_demand_row(d, i, atr_buffer)
             
-            # 🔥 Check duplicate with 0.5 tolerance
             is_dup = False
             for key, (p, d_val) in seen_zones.items():
                 if abs(p - z.proximal) < 0.5 and abs(d_val - z.distal) < 0.5:
                     is_dup = True
                     break
-            
             if is_dup:
                 continue
                 
