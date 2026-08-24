@@ -14,6 +14,7 @@ TradingView Pine Script:
 
 🔥 MODIFIED: Only 1 base candle allowed for ALL patterns (std only)
 🔥 BIG BASE: Zone draws ONLY after 3rd candle closes
+🔥 BIG BASE: NO ATR buffer (uses leg-in high/low directly)
 """
 
 from dataclasses import dataclass, field
@@ -109,6 +110,7 @@ def detect_patterns(
     # ============================================================
     # 🔥 BIG BASE PATTERN DETECTION
     # Zone draws ONLY after 3rd candle closes
+    # NO ATR buffer - uses leg-in high/low directly
     # ============================================================
     # Type 1: Supply (RBD style)
     #   - Candle 1 (leg-in): GREEN, body ≥ 65% of range
@@ -135,12 +137,6 @@ def detect_patterns(
     big_base_green = is_p2_green & (body_p2 >= t_p2 * 0.65) & (p2_o > l1) & (p2_o < h1) & (p2_c > l1) & (p2_c < h1)
     legout_green_any = is_p3_green
 
-    # 🔥 BIG BASE detected when 3rd candle (p3) is closed
-    # We detect on current bar (i) where p3 is the closed leg-out
-    # But we need to shift detection by 2 bars so zone draws after close
-    # Actually we detect on bar i where the pattern completes at p3
-    # And we use p3 as the reference
-    
     # BIG BASE pattern condition (detected at bar i where p3 is closed)
     is_big_supply_raw = legin_green_big & big_base_red & legout_red_any
     is_big_demand_raw = legin_red_big & big_base_green & legout_green_any
@@ -187,8 +183,6 @@ def detect_patterns(
     d["is_BIG_DEMAND"] = is_big_demand
 
     # Store shifted values for zone creation
-    # For BIG BASE, we need p1 and p2 values at the detection bar
-    # But since we shifted, we need to use the values from 2 bars ago
     for n, s in [("o1", p1_o), ("c1", p1_c), ("o2", p2_o), ("c2", p2_c),
                  ("o3", p3_o), ("c3", p3_c),
                  ("h1", h1), ("h2", h2), ("h3", h3),
@@ -201,17 +195,9 @@ def detect_patterns(
 def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     # 🔥 Check if it's a BIG BASE pattern first
     if bool(d["is_BIG_SUPPLY"].iloc[i]):
-        # For BIG BASE, use h1 and l1 from the detection bar
-        # But since we shifted, we need the values from when pattern completed
-        # Use h3, l3 (which are actually h1, l1 from 2 bars ago after shift)
         h3, l3 = d["h3"].iloc[i], d["l3"].iloc[i]
-        h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
-        
-        # BIG SUPPLY: proximal = leg-in high (which is h1 from pattern)
-        # But after shift, h1 is actually h1 from 2 bars ago
-        # Let's use h3 and l3 which map to the original h1, l1
         proximal = h3  # Supply zone top = leg-in high
-        distal = l3 - atr_buffer  # Distal = leg-in low - buffer
+        distal = l3    # 🔥 NO ATR BUFFER - Distal = leg-in low
         risk = distal - proximal
         target = proximal - risk * 3.0
         return Zone(
@@ -226,16 +212,13 @@ def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
             legout_count=1,
         )
 
-    # Standard pattern (1 base candle)
+    # Standard pattern (1 base candle) - WITH ATR buffer
     is_rbd = bool(d["is_RBD"].iloc[i])
     h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
     o1, c1 = d["o1"].iloc[i], d["c1"].iloc[i]
     
-    # For supply: leg-in is p2 (2 bars back), base is p1 (1 bar back)
-    # Proximal = min(open, close) of base candle (p1)
-    # Distal = high of base candle + ATR buffer
     proximal = min(o1, c1)
-    distal = h1 + atr_buffer
+    distal = h1 + atr_buffer  # ✅ ATR buffer for standard patterns
     
     risk = distal - proximal
     target = proximal - risk * 3.0
@@ -258,10 +241,8 @@ def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     # 🔥 Check if it's a BIG BASE pattern first
     if bool(d["is_BIG_DEMAND"].iloc[i]):
         h3, l3 = d["h3"].iloc[i], d["l3"].iloc[i]
-        h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
-        
         proximal = l3  # Demand zone bottom = leg-in low
-        distal = h3 + atr_buffer  # Distal = leg-in high + buffer
+        distal = h3    # 🔥 NO ATR BUFFER - Distal = leg-in high
         risk = proximal - distal
         target = proximal + risk * 3.0
         return Zone(
@@ -276,16 +257,13 @@ def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
             legout_count=1,
         )
 
-    # Standard pattern (1 base candle)
+    # Standard pattern (1 base candle) - WITH ATR buffer
     is_dbr = bool(d["is_DBR"].iloc[i])
     h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
     o1, c1 = d["o1"].iloc[i], d["c1"].iloc[i]
     
-    # For demand: leg-in is p2 (2 bars back), base is p1 (1 bar back)
-    # Proximal = max(open, close) of base candle (p1)
-    # Distal = low of base candle - ATR buffer
     proximal = max(o1, c1)
-    distal = l1 - atr_buffer
+    distal = l1 - atr_buffer  # ✅ ATR buffer for standard patterns
     
     risk = proximal - distal
     target = proximal + risk * 3.0
