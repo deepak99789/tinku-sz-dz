@@ -13,7 +13,7 @@ TradingView Pine Script:
     - BIG BASE (Supply/Demand) -> New pattern added
 
 🔥 MODIFIED: Only 1 base candle allowed for ALL patterns (std only)
-🔥 BIG BASE: Zone draws ONLY after 3rd candle closes
+🔥 BIG BASE: Detected on current bar (no shift)
 🔥 BIG BASE: NO ATR buffer (uses leg-in high/low directly)
 """
 
@@ -81,7 +81,7 @@ def detect_patterns(
     🔥 MODIFIED: Only std (1 base candle) patterns are detected.
     2base, 3base, and ext variants are REMOVED.
     
-    🔥 BIG BASE: Detected when 3rd candle (leg-out) closes.
+    🔥 BIG BASE: Detected on current bar (no shift)
     """
     d = df.copy()
     o, c, h, l = d["Open"], d["Close"], d["High"], d["Low"]
@@ -109,13 +109,12 @@ def detect_patterns(
 
     # ============================================================
     # 🔥 BIG BASE PATTERN DETECTION
-    # Zone draws ONLY after 3rd candle closes
-    # NO ATR buffer - uses leg-in high/low directly
+    # 🔥 FIXED: No shift - detect on current bar
     # ============================================================
     # Type 1: Supply (RBD style)
     #   - Candle 1 (leg-in): GREEN, body ≥ 65% of range
     #   - Candle 2 (big base): RED, body ≥ 65% of range, Open/Close inside Candle 1's range
-    #   - Candle 3 (leg-out): RED (any body) - this is the CLOSED candle
+    #   - Candle 3 (leg-out): RED (any body)
     # ============================================================
     body_p1 = (p1_c - p1_o).abs()
     body_p2 = (p2_c - p2_o).abs()
@@ -124,31 +123,25 @@ def detect_patterns(
     # Candle 1 (p1): GREEN, body >= 65% of range
     legin_green_big = is_p1_green & (body_p1 >= t_p1 * 0.65)
     # Candle 2 (p2): RED, body >= 65% of range, and inside Candle 1's range
-    big_base_red = is_p2_red & (body_p2 >= t_p2 * 0.65) & (p2_o > l1) & (p2_o < h1) & (p2_c > l1) & (p2_c < h1)
-    # Candle 3 (p3): RED (any body) - CLOSED candle
+    big_base_red = is_p2_red & (body_p2 >= t_p2 * 0.65) & (p2_o >= l1) & (p2_o <= h1) & (p2_c >= l1) & (p2_c <= h1)
+    # Candle 3 (p3): RED (any body)
     legout_red_any = is_p3_red
 
     # Type 2: Demand (DBR style)
     #   - Candle 1 (leg-in): RED, body ≥ 65% of range
     #   - Candle 2 (big base): GREEN, body ≥ 65% of range, Open/Close inside Candle 1's range
-    #   - Candle 3 (leg-out): GREEN (any body) - CLOSED candle
+    #   - Candle 3 (leg-out): GREEN (any body)
     # ============================================================
     legin_red_big = is_p1_red & (body_p1 >= t_p1 * 0.65)
-    big_base_green = is_p2_green & (body_p2 >= t_p2 * 0.65) & (p2_o > l1) & (p2_o < h1) & (p2_c > l1) & (p2_c < h1)
+    big_base_green = is_p2_green & (body_p2 >= t_p2 * 0.65) & (p2_o >= l1) & (p2_o <= h1) & (p2_c >= l1) & (p2_c <= h1)
     legout_green_any = is_p3_green
 
-    # BIG BASE pattern condition (detected at bar i where p3 is closed)
-    is_big_supply_raw = legin_green_big & big_base_red & legout_red_any
-    is_big_demand_raw = legin_red_big & big_base_green & legout_green_any
-
-    # 🔥 Shift by 2 to detect when 3rd candle closes
-    # is_big_supply at bar i means pattern completed 2 bars ago
-    is_big_supply = _bool(is_big_supply_raw.shift(2))
-    is_big_demand = _bool(is_big_demand_raw.shift(2))
+    # 🔥 FIXED: No shift - detect directly on current bar
+    is_big_supply = _bool(legin_green_big & big_base_red & legout_red_any)
+    is_big_demand = _bool(legin_red_big & big_base_green & legout_green_any)
 
     # ============================================================
     # 🔥 STANDARD PATTERNS (Only 1 base candle - std)
-    # Detected on current bar when leg-out closes
     # ============================================================
     # RBD: Green leg-in (p2), Red leg-out (current)
     rbd_std = is_p2_green & is_c_red & l_in_norm & l_out_norm & (t_p1 <= t_p2 * 0.6) & (t_p2 >= t_p1 * 1.7)
@@ -178,7 +171,7 @@ def detect_patterns(
     d["is_DBR"] = dbr_std & (l >= l1)
     d["is_RBR"] = rbr_std & (l >= l1)
 
-    # 🔥 Add BIG BASE columns (shifted by 2)
+    # 🔥 Add BIG BASE columns
     d["is_BIG_SUPPLY"] = is_big_supply
     d["is_BIG_DEMAND"] = is_big_demand
 
@@ -195,13 +188,13 @@ def detect_patterns(
 def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     # 🔥 Check if it's a BIG BASE pattern first
     if bool(d["is_BIG_SUPPLY"].iloc[i]):
-        h3, l3 = d["h3"].iloc[i], d["l3"].iloc[i]
-        proximal = h3  # Supply zone top = leg-in high
-        distal = l3    # 🔥 NO ATR BUFFER - Distal = leg-in low
+        h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
+        proximal = h1  # Supply zone top = leg-in high
+        distal = l1    # 🔥 NO ATR BUFFER - Distal = leg-in low
         risk = distal - proximal
         target = proximal - risk * 3.0
         return Zone(
-            start_bar=i - 2,
+            start_bar=i - 1,
             end_bar=i,
             proximal=proximal,
             distal=distal,
@@ -218,7 +211,7 @@ def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     o1, c1 = d["o1"].iloc[i], d["c1"].iloc[i]
     
     proximal = min(o1, c1)
-    distal = h1 + atr_buffer  # ✅ ATR buffer for standard patterns
+    distal = h1 + atr_buffer
     
     risk = distal - proximal
     target = proximal - risk * 3.0
@@ -240,13 +233,13 @@ def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
 def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     # 🔥 Check if it's a BIG BASE pattern first
     if bool(d["is_BIG_DEMAND"].iloc[i]):
-        h3, l3 = d["h3"].iloc[i], d["l3"].iloc[i]
-        proximal = l3  # Demand zone bottom = leg-in low
-        distal = h3    # 🔥 NO ATR BUFFER - Distal = leg-in high
+        h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
+        proximal = l1  # Demand zone bottom = leg-in low
+        distal = h1    # 🔥 NO ATR BUFFER - Distal = leg-in high
         risk = proximal - distal
         target = proximal + risk * 3.0
         return Zone(
-            start_bar=i - 2,
+            start_bar=i - 1,
             end_bar=i,
             proximal=proximal,
             distal=distal,
@@ -263,7 +256,7 @@ def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     o1, c1 = d["o1"].iloc[i], d["c1"].iloc[i]
     
     proximal = max(o1, c1)
-    distal = l1 - atr_buffer  # ✅ ATR buffer for standard patterns
+    distal = l1 - atr_buffer
     
     risk = proximal - distal
     target = proximal + risk * 3.0
