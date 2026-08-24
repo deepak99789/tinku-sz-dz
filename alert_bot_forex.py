@@ -22,6 +22,7 @@ from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_I
 # ==========================================================================
 
 INTERVALS = [
+    "1m",  # 🔥 ADDED - 1 Minute
     "5m", "15m", "30m", "60m", "90m",
     "1d", "1wk", "1mo", "3mo"
 ]
@@ -44,12 +45,14 @@ INDICES_TICKERS = ["^GSPC", "^DJI", "^IXIC", "^RUT", "^GDAXI", "^N225"]
 TICKERS = FOREX_TICKERS + COMMODITY_TICKERS + CRYPTO_TICKERS + INDICES_TICKERS
 
 YF_INTERVAL_MAP = {
+    "1m": "1m",  # 🔥 ADDED
     "5m": "5m", "15m": "15m", "30m": "30m",
     "60m": "60m", "90m": "90m",
     "1d": "1d", "5d": "5d", "1wk": "1wk", "1mo": "1mo", "3mo": "3mo"
 }
 
-PERIOD = "1mo"
+# 🔥 For 1-minute data, use shorter period
+PERIOD = "1mo"  # yfinance will auto-adjust to max available (7 days for 1m)
 ATR_LENGTH = 14
 ATR_MULTIPLIER = 0.35
 RR_TARGET = 3.0
@@ -79,7 +82,7 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID_FOREX", "")
 
-PERIOD_LADDER = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
+PERIOD_LADDER = ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
 # ==========================================================================
 # 🔥 RUN CACHE - Prevent duplicates within same run
@@ -102,20 +105,39 @@ def get_yf_interval(itv: str) -> str:
 
 def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
     yf_interval = get_yf_interval(itv)
-    idx = PERIOD_LADDER.index(requested_period) if requested_period in PERIOD_LADDER else 0
-    for cand in [PERIOD_LADDER[i] for i in range(idx, -1, -1)]:
-        try:
-            df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False)
-        except Exception:
-            continue
-        if df.empty:
-            continue
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        df = df[["Open", "High", "Low", "Close"]].dropna()
-        if not df.empty:
-            return df
-    return pd.DataFrame()
+    
+    # 🔥 For 1m, use max 7d data (yfinance limitation)
+    if yf_interval == "1m":
+        # Try smaller periods first (1d, 5d, 7d)
+        for cand in ["7d", "5d", "1d"]:
+            try:
+                df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False)
+                if not df.empty:
+                    break
+            except Exception:
+                continue
+        else:
+            return pd.DataFrame()
+    else:
+        idx = PERIOD_LADDER.index(requested_period) if requested_period in PERIOD_LADDER else 0
+        df = pd.DataFrame()
+        for cand in [PERIOD_LADDER[i] for i in range(idx, -1, -1)]:
+            try:
+                df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False)
+            except Exception:
+                continue
+            if df.empty:
+                continue
+            break
+        else:
+            return pd.DataFrame()
+    
+    if df.empty:
+        return df
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    df = df[["Open", "High", "Low", "Close"]].dropna()
+    return df
 
 
 # ==========================================================================
@@ -215,6 +237,7 @@ def main():
         for itv in INTERVALS:
             df = fetch_smart(tkr, itv, PERIOD)
             if df.empty:
+                logger.warning(f"⚠️ No data for {tkr} [{itv}]")
                 continue
             
             try:
