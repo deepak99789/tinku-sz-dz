@@ -12,17 +12,8 @@ TradingView Pine Script:
     - RBR (Rally-Base-Rally) -> Demand zone
     - BIG BASE (Supply/Demand) -> New pattern added
 
-Each pattern is detected in 4 variants, exactly mirroring the Pine logic:
-    - std     : 1 base candle  (base = candle 1 bar back)
-    - ext     : 1 base candle  (base = candle 2 bars back, leg-out can span 2 candles)
-    - 2base   : 2 base candles (base = candles 1 & 2 bars back)
-    - 3base   : 3 base candles (base = candles 1, 2 & 3 bars back)
-
-A "base_count_filter" lets you restrict detection to only 1, 2, 3 base-candle
-patterns, or "All" of them - same as the Pine Script dropdown input.
-
-Zone lifecycle (pre-alert -> entry -> SL / Target) is tracked bar by bar,
-just like the Pine `active_boxes` / `zone_*` arrays.
+🔥 MODIFIED: Only 1 base candle allowed for ALL patterns (std only)
+🔥 BIG BASE: Zone draws ONLY after 3rd candle closes
 """
 
 from dataclasses import dataclass, field
@@ -32,8 +23,7 @@ import pandas as pd
 
 
 # --------------------------------------------------------------------------
-# ATR (Wilder's smoothing) - used for the zone buffer & the "upcoming alert"
-# distance. This mirrors Pine's ta.atr().
+# ATR (Wilder's smoothing)
 # --------------------------------------------------------------------------
 def wilder_atr(df: pd.DataFrame, length: int = 14) -> pd.Series:
     high, low, close = df["High"], df["Low"], df["Close"]
@@ -86,16 +76,19 @@ def detect_patterns(
 ) -> pd.DataFrame:
     """
     Vectorised, per-bar pattern detection.
-    Adds boolean/aux columns to a copy of df and returns it.
-    base_count_filter: "1", "2", "3" or "All"
+    
+    🔥 MODIFIED: Only std (1 base candle) patterns are detected.
+    2base, 3base, and ext variants are REMOVED.
+    
+    🔥 BIG BASE: Detected when 3rd candle (leg-out) closes.
     """
     d = df.copy()
     o, c, h, l = d["Open"], d["Close"], d["High"], d["Low"]
 
+    # For BIG BASE: we need p1, p2, p3 (3 bars back)
     p1_o, p1_c = o.shift(1), c.shift(1)
     p2_o, p2_c = o.shift(2), c.shift(2)
     p3_o, p3_c = o.shift(3), c.shift(3)
-    p4_o, p4_c = o.shift(4), c.shift(4)
 
     h1, h2, h3 = h.shift(1), h.shift(2), h.shift(3)
     l1, l2, l3 = l.shift(1), l.shift(2), l.shift(3)
@@ -104,9 +97,7 @@ def detect_patterns(
     t_p1 = h1 - l1
     t_p2 = h2 - l2
     t_p3 = h3 - l3
-    t_p4 = h.shift(4) - l.shift(4)
 
-    is_p4_green, is_p4_red = p4_c > p4_o, p4_c < p4_o
     is_p3_green, is_p3_red = p3_c > p3_o, p3_c < p3_o
     is_p2_green, is_p2_red = p2_c > p2_o, p2_c < p2_o
     is_p1_green, is_p1_red = p1_c > p1_o, p1_c < p1_o
@@ -114,115 +105,93 @@ def detect_patterns(
 
     l_in_norm = (p2_c - p2_o).abs() >= t_p2 * 0.6
     l_out_norm = (c - o).abs() >= t_c * 0.6
-    l_in_ext = (p3_c - p3_o).abs() >= t_p3 * 0.6
-    l_out_ext = ((p1_c - p1_o).abs() >= t_p1 * 0.6) & ((c - o).abs() >= t_c * 0.6)
-    l_in_3 = (p4_c - p4_o).abs() >= t_p4 * 0.6
 
     # ============================================================
-    # 🔥 NEW: BIG BASE PATTERN DETECTION
+    # 🔥 BIG BASE PATTERN DETECTION
+    # Zone draws ONLY after 3rd candle closes
     # ============================================================
     # Type 1: Supply (RBD style)
     #   - Candle 1 (leg-in): GREEN, body ≥ 65% of range
     #   - Candle 2 (big base): RED, body ≥ 65% of range, Open/Close inside Candle 1's range
-    #   - Candle 3 (leg-out): RED (any body)
+    #   - Candle 3 (leg-out): RED (any body) - this is the CLOSED candle
     # ============================================================
     body_p1 = (p1_c - p1_o).abs()
     body_p2 = (p2_c - p2_o).abs()
     body_p3 = (p3_c - p3_o).abs()
 
-    # Candle 1: GREEN, body >= 65% of range
+    # Candle 1 (p1): GREEN, body >= 65% of range
     legin_green_big = is_p1_green & (body_p1 >= t_p1 * 0.65)
-    # Candle 2: RED, body >= 65% of range, and inside Candle 1's range
+    # Candle 2 (p2): RED, body >= 65% of range, and inside Candle 1's range
     big_base_red = is_p2_red & (body_p2 >= t_p2 * 0.65) & (p2_o > l1) & (p2_o < h1) & (p2_c > l1) & (p2_c < h1)
-    # Candle 3: RED (any body)
+    # Candle 3 (p3): RED (any body) - CLOSED candle
     legout_red_any = is_p3_red
 
     # Type 2: Demand (DBR style)
     #   - Candle 1 (leg-in): RED, body ≥ 65% of range
     #   - Candle 2 (big base): GREEN, body ≥ 65% of range, Open/Close inside Candle 1's range
-    #   - Candle 3 (leg-out): GREEN (any body)
+    #   - Candle 3 (leg-out): GREEN (any body) - CLOSED candle
     # ============================================================
     legin_red_big = is_p1_red & (body_p1 >= t_p1 * 0.65)
     big_base_green = is_p2_green & (body_p2 >= t_p2 * 0.65) & (p2_o > l1) & (p2_o < h1) & (p2_c > l1) & (p2_c < h1)
     legout_green_any = is_p3_green
 
-    # Combine conditions
-    is_big_supply = legin_green_big & big_base_red & legout_red_any
-    is_big_demand = legin_red_big & big_base_green & legout_green_any
+    # 🔥 BIG BASE detected when 3rd candle (p3) is closed
+    # We detect on current bar (i) where p3 is the closed leg-out
+    # But we need to shift detection by 2 bars so zone draws after close
+    # Actually we detect on bar i where the pattern completes at p3
+    # And we use p3 as the reference
+    
+    # BIG BASE pattern condition (detected at bar i where p3 is closed)
+    is_big_supply_raw = legin_green_big & big_base_red & legout_red_any
+    is_big_demand_raw = legin_red_big & big_base_green & legout_green_any
 
-    # ----------------------------------------------------------------------
-    allow_1 = base_count_filter in ("All", "1")
-    allow_2 = base_count_filter in ("All", "2")
-    allow_3 = base_count_filter in ("All", "3")
+    # 🔥 Shift by 2 to detect when 3rd candle closes
+    # is_big_supply at bar i means pattern completed 2 bars ago
+    is_big_supply = _bool(is_big_supply_raw.shift(2))
+    is_big_demand = _bool(is_big_demand_raw.shift(2))
 
-    def build(direction_leg_in_green, direction_leg_out_green, allow1, allow2, allow3):
-        legin1 = is_p2_green if direction_leg_in_green else is_p2_red
-        legin_ext = is_p3_green if direction_leg_in_green else is_p3_red
-        legin_3 = is_p4_green if direction_leg_in_green else is_p4_red
-        legout = is_c_green if direction_leg_out_green else is_c_red
-        p1_cont = is_p1_green if direction_leg_out_green else is_p1_red
+    # ============================================================
+    # 🔥 STANDARD PATTERNS (Only 1 base candle - std)
+    # Detected on current bar when leg-out closes
+    # ============================================================
+    # RBD: Green leg-in (p2), Red leg-out (current)
+    rbd_std = is_p2_green & is_c_red & l_in_norm & l_out_norm & (t_p1 <= t_p2 * 0.6) & (t_p2 >= t_p1 * 1.7)
+    rbd_std = rbd_std & ((t_c >= t_p2 * 1.7) | (is_p1_red & (t_p1 + t_c >= t_p2 * 1.7)))
 
-        std_cond = legin1 & legout & l_in_norm & l_out_norm & (t_p1 <= t_p2 * 0.6) & (t_p2 >= t_p1 * 1.7)
-        std = std_cond & ((t_c >= t_p2 * 1.7) | (p1_cont & (t_p1 + t_c >= t_p2 * 1.7))) & allow1
+    # DBD: Red leg-in (p2), Red leg-out (current)
+    dbd_std = is_p2_red & is_c_red & l_in_norm & l_out_norm & (t_p1 <= t_p2 * 0.6) & (t_p2 >= t_p1 * 1.7)
+    dbd_std = dbd_std & ((t_c >= t_p2 * 1.7) | (is_p1_red & (t_p1 + t_c >= t_p2 * 1.7)))
 
-        ext_cond = legin_ext & legout & l_in_ext & l_out_ext & (t_p2 <= t_p3 * 0.6) & (t_p3 >= t_p2 * 1.7)
-        ext = ext_cond & ((t_p1 >= t_p3 * 1.7) | (p1_cont & (t_p1 + t_c >= t_p3 * 1.7))) & allow1
+    # DBR: Red leg-in (p2), Green leg-out (current)
+    dbr_std = is_p2_red & is_c_green & l_in_norm & l_out_norm & (t_p1 <= t_p2 * 0.6) & (t_p2 >= t_p1 * 1.7)
+    dbr_std = dbr_std & ((t_c >= t_p2 * 1.7) | (is_p1_green & (t_p1 + t_c >= t_p2 * 1.7)))
 
-        base2_cond = (
-            legin_ext & legout & l_in_ext & l_out_norm
-            & (t_p2 <= t_p3 * 0.6) & (t_p1 <= t_p3 * 0.6)
-            & (t_p3 >= t_p2 * 1.7) & (t_p3 >= t_p1 * 1.7)
-        )
-        base2 = base2_cond & ((t_c >= t_p3 * 1.7) | (p1_cont & (t_p1 + t_c >= t_p3 * 1.7))) & allow2
+    # RBR: Green leg-in (p2), Green leg-out (current)
+    rbr_std = is_p2_green & is_c_green & l_in_norm & l_out_norm & (t_p1 <= t_p2 * 0.6) & (t_p2 >= t_p1 * 1.7)
+    rbr_std = rbr_std & ((t_c >= t_p2 * 1.7) | (is_p1_green & (t_p1 + t_c >= t_p2 * 1.7)))
 
-        base3_cond = (
-            legin_3 & legout & l_in_3 & l_out_norm
-            & (t_p3 <= t_p4 * 0.6) & (t_p2 <= t_p4 * 0.6) & (t_p1 <= t_p4 * 0.6)
-            & (t_p4 >= t_p3 * 1.7) & (t_p4 >= t_p2 * 1.7) & (t_p4 >= t_p1 * 1.7)
-        )
-        base3 = base3_cond & ((t_c >= t_p4 * 1.7) | (p1_cont & (t_p1 + t_c >= t_p4 * 1.7))) & allow3
+    # Convert to boolean series
+    rbd_std = _bool(rbd_std)
+    dbd_std = _bool(dbd_std)
+    dbr_std = _bool(dbr_std)
+    rbr_std = _bool(rbr_std)
 
-        return _bool(std), _bool(ext), _bool(base2), _bool(base3)
+    # Check that price doesn't break the base
+    d["is_RBD"] = rbd_std & (h <= h1)
+    d["is_DBD"] = dbd_std & (h <= h1)
+    d["is_DBR"] = dbr_std & (l >= l1)
+    d["is_RBR"] = rbr_std & (l >= l1)
 
-    rbd_std, rbd_ext, rbd_2b, rbd_3b = build(True, False, allow_1, allow_2, allow_3)
-    dbd_std, dbd_ext, dbd_2b, dbd_3b = build(False, False, allow_1, allow_2, allow_3)
-    dbr_std, dbr_ext, dbr_2b, dbr_3b = build(False, True, allow_1, allow_2, allow_3)
-    rbr_std, rbr_ext, rbr_2b, rbr_3b = build(True, True, allow_1, allow_2, allow_3)
+    # 🔥 Add BIG BASE columns (shifted by 2)
+    d["is_BIG_SUPPLY"] = is_big_supply
+    d["is_BIG_DEMAND"] = is_big_demand
 
-    def combine_supply(std, ext, b2, b3):
-        base_high = np.where(
-            b3, np.maximum(np.maximum(h3, h2), h1),
-            np.where(b2, np.maximum(h2, h1), np.where(std, h1, h2)),
-        )
-        w_ok = h <= base_high
-        is_pat = (std | ext | b2 | b3) & w_ok
-        return _bool(pd.Series(is_pat, index=d.index))
-
-    def combine_demand(std, ext, b2, b3):
-        base_low = np.where(
-            b3, np.minimum(np.minimum(l3, l2), l1),
-            np.where(b2, np.minimum(l2, l1), np.where(std, l1, l2)),
-        )
-        w_ok = l >= base_low
-        is_pat = (std | ext | b2 | b3) & w_ok
-        return _bool(pd.Series(is_pat, index=d.index))
-
-    d["is_RBD"] = combine_supply(rbd_std, rbd_ext, rbd_2b, rbd_3b)
-    d["is_DBD"] = combine_supply(dbd_std, dbd_ext, dbd_2b, dbd_3b)
-    d["is_DBR"] = combine_demand(dbr_std, dbr_ext, dbr_2b, dbr_3b)
-    d["is_RBR"] = combine_demand(rbr_std, rbr_ext, rbr_2b, rbr_3b)
-
-    # 🔥 Add BIG BASE columns
-    d["is_BIG_SUPPLY"] = _bool(is_big_supply)
-    d["is_BIG_DEMAND"] = _bool(is_big_demand)
-
-    d["rbd_2base"], d["rbd_3base"], d["rbd_ext"] = rbd_2b, rbd_3b, rbd_ext
-    d["dbd_2base"], d["dbd_3base"], d["dbd_ext"] = dbd_2b, dbd_3b, dbd_ext
-    d["dbr_2base"], d["dbr_3base"], d["dbr_ext"] = dbr_2b, dbr_3b, dbr_ext
-    d["rbr_2base"], d["rbr_3base"], d["rbr_ext"] = rbr_2b, rbr_3b, rbr_ext
-
+    # Store shifted values for zone creation
+    # For BIG BASE, we need p1 and p2 values at the detection bar
+    # But since we shifted, we need to use the values from 2 bars ago
     for n, s in [("o1", p1_o), ("c1", p1_c), ("o2", p2_o), ("c2", p2_c),
-                 ("o3", p3_o), ("c3", p3_c), ("h1", h1), ("h2", h2), ("h3", h3),
+                 ("o3", p3_o), ("c3", p3_c),
+                 ("h1", h1), ("h2", h2), ("h3", h3),
                  ("l1", l1), ("l2", l2), ("l3", l3)]:
         d[n] = s
 
@@ -232,9 +201,17 @@ def detect_patterns(
 def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     # 🔥 Check if it's a BIG BASE pattern first
     if bool(d["is_BIG_SUPPLY"].iloc[i]):
+        # For BIG BASE, use h1 and l1 from the detection bar
+        # But since we shifted, we need the values from when pattern completed
+        # Use h3, l3 (which are actually h1, l1 from 2 bars ago after shift)
+        h3, l3 = d["h3"].iloc[i], d["l3"].iloc[i]
         h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
-        proximal = h1  # Supply zone top = leg-in high
-        distal = l1 - atr_buffer  # Distal = leg-in low - buffer
+        
+        # BIG SUPPLY: proximal = leg-in high (which is h1 from pattern)
+        # But after shift, h1 is actually h1 from 2 bars ago
+        # Let's use h3 and l3 which map to the original h1, l1
+        proximal = h3  # Supply zone top = leg-in high
+        distal = l3 - atr_buffer  # Distal = leg-in low - buffer
         risk = distal - proximal
         target = proximal - risk * 3.0
         return Zone(
@@ -245,62 +222,46 @@ def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
             target=target,
             is_supply=True,
             pattern_name="BIG SUPPLY",
-            base_count=2,
+            base_count=1,
             legout_count=1,
         )
 
-    is3 = bool(d["rbd_3base"].iloc[i] or d["dbd_3base"].iloc[i])
-    is2 = bool(d["rbd_2base"].iloc[i] or d["dbd_2base"].iloc[i])
-    isExt = bool(d["rbd_ext"].iloc[i] or d["dbd_ext"].iloc[i])
+    # Standard pattern (1 base candle)
     is_rbd = bool(d["is_RBD"].iloc[i])
-
+    h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
     o1, c1 = d["o1"].iloc[i], d["c1"].iloc[i]
-    o2, c2 = d["o2"].iloc[i], d["c2"].iloc[i]
-    o3, c3 = d["o3"].iloc[i], d["c3"].iloc[i]
-    h1, h2, h3 = d["h1"].iloc[i], d["h2"].iloc[i], d["h3"].iloc[i]
-
-    if is3:
-        proximal = min(min(o3, c3), min(o2, c2), min(o1, c1))
-        distal = max(h3, h2, h1) + atr_buffer
-        base_idx = 3
-        tag = " 3C"
-    elif is2:
-        proximal = min(min(o2, c2), min(o1, c1))
-        distal = max(h2, h1) + atr_buffer
-        base_idx = 2
-        tag = " 2C"
-    else:
-        base_idx = 2 if isExt else 1
-        o_b, c_b = (o2, c2) if isExt else (o1, c1)
-        h_b = h2 if isExt else h1
-        proximal = min(o_b, c_b)
-        distal = h_b + atr_buffer
-        tag = ""
-
+    
+    # For supply: leg-in is p2 (2 bars back), base is p1 (1 bar back)
+    # Proximal = min(open, close) of base candle (p1)
+    # Distal = high of base candle + ATR buffer
+    proximal = min(o1, c1)
+    distal = h1 + atr_buffer
+    
     risk = distal - proximal
     target = proximal - risk * 3.0
-    name = ("RBD" if is_rbd else "DBD") + tag
-    base_count = 3 if is3 else (2 if is2 else 1)
-    legout_count = 2 if (isExt and not is3 and not is2) else 1
+    name = "RBD" if is_rbd else "DBD"
+    
     return Zone(
-        start_bar=i - base_idx,
+        start_bar=i - 1,
         end_bar=i,
         proximal=proximal,
         distal=distal,
         target=target,
         is_supply=True,
         pattern_name=name,
-        base_count=base_count,
-        legout_count=legout_count,
+        base_count=1,
+        legout_count=1,
     )
 
 
 def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     # 🔥 Check if it's a BIG BASE pattern first
     if bool(d["is_BIG_DEMAND"].iloc[i]):
+        h3, l3 = d["h3"].iloc[i], d["l3"].iloc[i]
         h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
-        proximal = l1  # Demand zone bottom = leg-in low
-        distal = h1 + atr_buffer  # Distal = leg-in high + buffer
+        
+        proximal = l3  # Demand zone bottom = leg-in low
+        distal = h3 + atr_buffer  # Distal = leg-in high + buffer
         risk = proximal - distal
         target = proximal + risk * 3.0
         return Zone(
@@ -311,53 +272,35 @@ def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
             target=target,
             is_supply=False,
             pattern_name="BIG DEMAND",
-            base_count=2,
+            base_count=1,
             legout_count=1,
         )
 
-    is3 = bool(d["dbr_3base"].iloc[i] or d["rbr_3base"].iloc[i])
-    is2 = bool(d["dbr_2base"].iloc[i] or d["rbr_2base"].iloc[i])
-    isExt = bool(d["dbr_ext"].iloc[i] or d["rbr_ext"].iloc[i])
+    # Standard pattern (1 base candle)
     is_dbr = bool(d["is_DBR"].iloc[i])
-
+    h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
     o1, c1 = d["o1"].iloc[i], d["c1"].iloc[i]
-    o2, c2 = d["o2"].iloc[i], d["c2"].iloc[i]
-    o3, c3 = d["o3"].iloc[i], d["c3"].iloc[i]
-    l1, l2, l3 = d["l1"].iloc[i], d["l2"].iloc[i], d["l3"].iloc[i]
-
-    if is3:
-        proximal = max(max(o3, c3), max(o2, c2), max(o1, c1))
-        distal = min(l3, l2, l1) - atr_buffer
-        base_idx = 3
-        tag = " 3C"
-    elif is2:
-        proximal = max(max(o2, c2), max(o1, c1))
-        distal = min(l2, l1) - atr_buffer
-        base_idx = 2
-        tag = " 2C"
-    else:
-        base_idx = 2 if isExt else 1
-        o_b, c_b = (o2, c2) if isExt else (o1, c1)
-        l_b = l2 if isExt else l1
-        proximal = max(o_b, c_b)
-        distal = l_b - atr_buffer
-        tag = ""
-
+    
+    # For demand: leg-in is p2 (2 bars back), base is p1 (1 bar back)
+    # Proximal = max(open, close) of base candle (p1)
+    # Distal = low of base candle - ATR buffer
+    proximal = max(o1, c1)
+    distal = l1 - atr_buffer
+    
     risk = proximal - distal
     target = proximal + risk * 3.0
-    name = ("DBR" if is_dbr else "RBR") + tag
-    base_count = 3 if is3 else (2 if is2 else 1)
-    legout_count = 2 if (isExt and not is3 and not is2) else 1
+    name = "DBR" if is_dbr else "RBR"
+    
     return Zone(
-        start_bar=i - base_idx,
+        start_bar=i - 1,
         end_bar=i,
         proximal=proximal,
         distal=distal,
         target=target,
         is_supply=False,
         pattern_name=name,
-        base_count=base_count,
-        legout_count=legout_count,
+        base_count=1,
+        legout_count=1,
     )
 
 
