@@ -13,8 +13,8 @@ TradingView Pine Script:
     - BIG BASE (Supply/Demand) -> New pattern added
 
 🔥 MODIFIED: Only 1 base candle allowed for ALL patterns (std only)
-🔥 BIG BASE: Detected on current bar (no shift)
 🔥 BIG BASE: NO ATR buffer (uses leg-in high/low directly)
+🔥 BIG BASE: Proper risk/target calculation
 """
 
 from dataclasses import dataclass, field
@@ -109,7 +109,6 @@ def detect_patterns(
 
     # ============================================================
     # 🔥 BIG BASE PATTERN DETECTION
-    # 🔥 FIXED: No shift - detect on current bar
     # ============================================================
     # Type 1: Supply (RBD style)
     #   - Candle 1 (leg-in): GREEN, body ≥ 65% of range
@@ -120,23 +119,16 @@ def detect_patterns(
     body_p2 = (p2_c - p2_o).abs()
     body_p3 = (p3_c - p3_o).abs()
 
-    # Candle 1 (p1): GREEN, body >= 65% of range
+    # 🔥 BIG SUPPLY
     legin_green_big = is_p1_green & (body_p1 >= t_p1 * 0.65)
-    # Candle 2 (p2): RED, body >= 65% of range, and inside Candle 1's range
     big_base_red = is_p2_red & (body_p2 >= t_p2 * 0.65) & (p2_o >= l1) & (p2_o <= h1) & (p2_c >= l1) & (p2_c <= h1)
-    # Candle 3 (p3): RED (any body)
     legout_red_any = is_p3_red
-
-    # Type 2: Demand (DBR style)
-    #   - Candle 1 (leg-in): RED, body ≥ 65% of range
-    #   - Candle 2 (big base): GREEN, body ≥ 65% of range, Open/Close inside Candle 1's range
-    #   - Candle 3 (leg-out): GREEN (any body)
-    # ============================================================
+    
+    # 🔥 BIG DEMAND
     legin_red_big = is_p1_red & (body_p1 >= t_p1 * 0.65)
     big_base_green = is_p2_green & (body_p2 >= t_p2 * 0.65) & (p2_o >= l1) & (p2_o <= h1) & (p2_c >= l1) & (p2_c <= h1)
     legout_green_any = is_p3_green
 
-    # 🔥 FIXED: No shift - detect directly on current bar
     is_big_supply = _bool(legin_green_big & big_base_red & legout_red_any)
     is_big_demand = _bool(legin_red_big & big_base_green & legout_green_any)
 
@@ -189,9 +181,13 @@ def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     # 🔥 Check if it's a BIG BASE pattern first
     if bool(d["is_BIG_SUPPLY"].iloc[i]):
         h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
-        proximal = h1  # Supply zone top = leg-in high
-        distal = l1    # 🔥 NO ATR BUFFER - Distal = leg-in low
-        risk = distal - proximal
+        # BIG SUPPLY: Proximal = High of leg-in, Distal = Low of leg-in
+        # This is a SUPPLY zone (SELL zone)
+        proximal = h1
+        distal = l1
+        # 🔥 Risk = Proximal - Distal (positive for supply)
+        risk = proximal - distal
+        # 🔥 Target = Proximal - Risk * RR (below the zone for supply)
         target = proximal - risk * 3.0
         return Zone(
             start_bar=i - 1,
@@ -234,9 +230,13 @@ def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     # 🔥 Check if it's a BIG BASE pattern first
     if bool(d["is_BIG_DEMAND"].iloc[i]):
         h1, l1 = d["h1"].iloc[i], d["l1"].iloc[i]
-        proximal = l1  # Demand zone bottom = leg-in low
-        distal = h1    # 🔥 NO ATR BUFFER - Distal = leg-in high
-        risk = proximal - distal
+        # BIG DEMAND: Proximal = Low of leg-in, Distal = High of leg-in
+        # This is a DEMAND zone (BUY zone)
+        proximal = l1
+        distal = h1
+        # 🔥 Risk = Distal - Proximal (positive for demand)
+        risk = distal - proximal
+        # 🔥 Target = Proximal + Risk * RR (above the zone for demand)
         target = proximal + risk * 3.0
         return Zone(
             start_bar=i - 1,
@@ -314,7 +314,9 @@ def track_zones(
                 
             seen_zones[f"{z.pattern_name}|{round(z.proximal, 2)}"] = (z.proximal, z.distal)
             
-            risk = z.distal - z.proximal
+            # 🔥 Risk already calculated in _zone_from_supply_row
+            # But we need to use rr_target from config
+            risk = z.proximal - z.distal
             z.target = z.proximal - risk * rr_target
             z.trigger_bar = i
             active.append(z)
@@ -334,7 +336,8 @@ def track_zones(
                 
             seen_zones[f"{z.pattern_name}|{round(z.proximal, 2)}"] = (z.proximal, z.distal)
             
-            risk = z.proximal - z.distal
+            # 🔥 Risk already calculated in _zone_from_demand_row
+            risk = z.distal - z.proximal
             z.target = z.proximal + risk * rr_target
             z.trigger_bar = i
             active.append(z)
