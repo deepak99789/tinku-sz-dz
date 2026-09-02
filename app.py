@@ -32,14 +32,13 @@ st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 # ==========================================================================
 
 INTERVAL_OPTIONS = [
-    "1m", "5m", "15m", "30m", "60m", "90m",
+    "5m", "15m", "30m", "60m", "90m",
     "1d", "5d", "1wk", "1mo", "3mo"
 ]
 
 PERIOD_OPTIONS = ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
 YF_INTERVAL_MAP_APP = {
-    "1m": "1m",
     "5m": "5m", "15m": "15m", "30m": "30m",
     "60m": "60m", "90m": "90m",
     "1d": "1d", "5d": "5d",
@@ -47,10 +46,9 @@ YF_INTERVAL_MAP_APP = {
 }
 
 PERIOD_BY_INTERVAL = {
-    "1m": "7d",
     "5m": "1mo", "15m": "1mo", "30m": "1mo",
     "60m": "1mo", "90m": "1mo",
-    "1d": "1mo", "5d": "5y",
+    "1d": "1mo", "5d": "5y",  # 1d uses 1mo data, 5d uses 5y data
     "1wk": "10y", "1mo": "10y", "3mo": "10y",
 }
 
@@ -78,7 +76,7 @@ NIFTY_50 = [
 ]
 
 # ==========================================================================
-# 🔥 NIFTY 100 STOCKS
+# 🔥 NIFTY 100 STOCKS (NIFTY 50 + NIFTY NEXT 50)
 # ==========================================================================
 
 NIFTY_100 = NIFTY_50 + [
@@ -98,7 +96,7 @@ NIFTY_100 = NIFTY_50 + [
 ]
 
 # ==========================================================================
-# 🔥 NIFTY 500 STOCKS (Complete list)
+# 🔥 NIFTY 500 STOCKS (COMPLETE LIST)
 # ==========================================================================
 
 NIFTY_500 = [
@@ -203,9 +201,8 @@ NIFTY_500 = [
     "WIPRO.NS", "WOCKPHARMA.NS", "YESBANK.NS", "ZFCVINDIA.NS", "ZEEL.NS",
     "ZENTEC.NS", "ZENSARTECH.NS", "ZYDUSLIFE.NS", "ZYDUSWELL.NS", "ECLERX.NS",
 ]
-
 # ==========================================================================
-# 🔥 MARKET PRESETS
+# 🔥 MARKET PRESETS - NIFTY 50, NIFTY 100, NIFTY 500 ADDED
 # ==========================================================================
 
 MARKET_PRESETS = {
@@ -296,13 +293,6 @@ with settings_box:
             "🎯 Zone Status Filter",
             options=["All", "Fresh Zone", "SL Zone", "Target Zone"],
             default=["All"],
-        )
-        # 🔥 Pattern Type Filter
-        pattern_type_choice = st.multiselect(
-            "📐 Pattern Type Filter",
-            options=["All", "RBD", "DBD", "DBR", "RBR", "BIG SUPPLY", "BIG DEMAND"],
-            default=["All"],
-            help="Sirf selected pattern types ke zones dikhayen"
         )
     with row1_c4:
         select_all_intervals = st.checkbox("✅ Select ALL timeframes", value=False)
@@ -461,11 +451,6 @@ def play_beep():
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
     yf_itv = YF_INTERVAL_MAP_APP.get(itv, itv)
-    
-    # 🔥 For 1m, use max 7d
-    if yf_itv == "1m" and per not in ["1d", "5d", "7d"]:
-        per = "7d"
-    
     try:
         df = yf.download(tkr, interval=yf_itv, period=per, progress=False, auto_adjust=False)
     except Exception:
@@ -479,13 +464,8 @@ def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
 
 
 def fetch_data_smart(tkr: str, itv: str, requested_period: str):
-    # 🔥 For 1m, use 7d max
-    if itv == "1m":
-        candidates = ["7d", "5d", "1d"]
-    else:
-        start_idx = PERIOD_OPTIONS.index(requested_period) if requested_period in PERIOD_OPTIONS else 4
-        candidates = [PERIOD_OPTIONS[i] for i in range(start_idx, -1, -1)]
-    
+    start_idx = PERIOD_OPTIONS.index(requested_period)
+    candidates = [PERIOD_OPTIONS[i] for i in range(start_idx, -1, -1)]
     for cand in candidates:
         df = fetch_data(tkr, itv, cand)
         if not df.empty:
@@ -666,10 +646,6 @@ if "combo_results" in st.session_state:
     total_fresh_all = 0
     total_sl_all = 0
     total_tp_all = 0
-    
-    # 🔥 Pattern-wise counts
-    pattern_counts = {}
-    
     for data in combo_results.values():
         for z in data["result"].all_zones:
             total_zones_all += 1
@@ -679,9 +655,6 @@ if "combo_results" in st.session_state:
                 total_sl_all += 1
             elif z.status == "tp":
                 total_tp_all += 1
-            
-            # Count by pattern
-            pattern_counts[z.pattern_name] = pattern_counts.get(z.pattern_name, 0) + 1
 
     st.divider()
     st.markdown("### 📋 Final Summary — sab tickers & timeframes")
@@ -690,10 +663,6 @@ if "combo_results" in st.session_state:
     s2.metric("🟡 Fresh Zones", total_fresh_all)
     s3.metric("🔴 SL Hit", total_sl_all)
     s4.metric("🟢 Target Hit", total_tp_all)
-    
-    # 🔥 Pattern-wise summary
-    if pattern_counts:
-        st.caption("**📐 Pattern-wise Breakdown:** " + ", ".join([f"{k}: {v}" for k, v in pattern_counts.items()]))
 
     dc = st.container()
     with dc:
@@ -709,10 +678,6 @@ if "combo_results" in st.session_state:
             if z.status in allowed_status
             and (legout_count_filter == "All" or z.legout_count == int(legout_count_filter))
         ]
-        
-        # 🔥 Apply pattern type filter
-        if "All" not in pattern_type_choice:
-            zones_filtered = [z for z in zones_filtered if z.pattern_name in pattern_type_choice]
 
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("SL Hits", result.sl_count)
@@ -730,47 +695,25 @@ if "combo_results" in st.session_state:
             )
         )
 
-        # 🔥 Different colors for BIG BASE patterns
         for z in zones_filtered:
             x0, x1 = df.index[z.start_bar], df.index[min(z.end_bar, len(df) - 1)]
             top = max(z.proximal, z.distal)
             bottom = min(z.proximal, z.distal)
-            
-            # Check if it's a BIG BASE pattern
-            if "BIG" in z.pattern_name:
-                # BIG BASE patterns with distinct color
-                if z.is_supply:
-                    color = "rgba(255,165,0,0.35)"  # Orange for BIG SUPPLY
-                    border = "rgba(255,165,0,0.9)"
-                else:
-                    color = "rgba(0,191,255,0.35)"  # Deep Sky Blue for BIG DEMAND
-                    border = "rgba(0,191,255,0.9)"
-            elif z.status == "sl":
+            if z.status == "sl":
                 color = "rgba(255,0,0,0.35)"
-                border = "rgba(255,0,0,0.9)"
             elif z.status == "tp":
                 color = "rgba(0,200,0,0.35)"
-                border = "rgba(0,200,0,0.9)"
             else:
                 color = "rgba(255,0,0,0.12)" if z.is_supply else "rgba(0,255,0,0.12)"
-                border = "rgba(255,0,0,0.6)" if z.is_supply else "rgba(0,255,0,0.6)"
 
             fig.add_shape(
                 type="rect", x0=x0, x1=x1, y0=bottom, y1=top,
-                fillcolor=color, line=dict(width=1, color=border),
+                fillcolor=color, line=dict(width=1, color=color.replace("0.12", "0.6").replace("0.35", "0.9")),
             )
-            
-            # 🔥 BIG BASE label with special emoji
-            label_text = z.pattern_name
-            if "BIG" in z.pattern_name:
-                label_text = f"🔥 {z.pattern_name}"
-            
             fig.add_annotation(
-                x=x0, y=top, text=f"{label_text} {'Supply' if z.is_supply else 'Demand'} [{z.status.upper()}]",
+                x=x0, y=top, text=f"{z.pattern_name} {'Supply' if z.is_supply else 'Demand'} [{z.status.upper()}]",
                 showarrow=False, yshift=10, font=dict(size=9, color="white"),
-                bgcolor="#FF8C00" if "BIG" in z.pattern_name and z.is_supply else 
-                         "#1E90FF" if "BIG" in z.pattern_name else 
-                         "#FF0000" if z.is_supply else "#00AA00",
+                bgcolor="#FF0000" if z.is_supply else "#00AA00",
             )
 
         fig.update_layout(
@@ -796,9 +739,6 @@ if "combo_results" in st.session_state:
                 if z.status not in allowed_status:
                     continue
                 if legout_count_filter != "All" and z.legout_count != int(legout_count_filter):
-                    continue
-                # 🔥 Apply pattern type filter
-                if "All" not in pattern_type_choice and z.pattern_name not in pattern_type_choice:
                     continue
                 rows.append({
                     "Ticker": tkr,
