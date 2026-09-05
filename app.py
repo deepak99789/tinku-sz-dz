@@ -691,12 +691,23 @@ if "combo_results" in st.session_state:
         f"{t} [{i} · {combo_results[(t, i)]['period_used']}]" for t, i in combo_keys
     ]
 
+    picked_date_for_summary = st.session_state.get("specific_date_filter")
+
+    def _zone_date(df_c, z):
+        ts = pd.Timestamp(df_c.index[z.start_bar])
+        if ts.tzinfo is not None:
+            ts = ts.tz_convert("UTC").tz_localize(None)
+        return ts.date()
+
     total_zones_all = 0
     total_fresh_all = 0
     total_sl_all = 0
     total_tp_all = 0
     for data in combo_results.values():
+        df_c = data["df"]
         for z in data["result"].all_zones:
+            if picked_date_for_summary is not None and _zone_date(df_c, z) != picked_date_for_summary:
+                continue
             total_zones_all += 1
             if z.status == "active":
                 total_fresh_all += 1
@@ -706,7 +717,10 @@ if "combo_results" in st.session_state:
                 total_tp_all += 1
 
     st.divider()
-    st.markdown("### 📋 Final Summary — sab tickers & timeframes")
+    summary_title = "### 📋 Final Summary — sab tickers & timeframes"
+    if picked_date_for_summary is not None:
+        summary_title = f"### 📋 Final Summary — {picked_date_for_summary} ka data"
+    st.markdown(summary_title)
     s1, s2, s3, s4 = st.columns(4)
     s1.metric("Total Zones Detected", total_zones_all)
     s2.metric("🟡 Fresh Zones", total_fresh_all)
