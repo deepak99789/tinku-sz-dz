@@ -802,31 +802,25 @@ if "combo_results" in st.session_state:
             min_date = zone_df["Start"].min().date()
             max_date = zone_df["Start"].max().date()
 
-            dcol1, dcol2 = st.columns([1.2, 3])
-            with dcol1:
-                date_filter_on = st.checkbox("Specific date/range dekhein", value=False)
-            with dcol2:
-                if date_filter_on:
-                    date_range = st.date_input(
-                        "Date select karein (ek date ya range)",
-                        value=(min_date, max_date),
-                        min_value=min_date,
-                        max_value=max_date,
-                    )
-                else:
-                    date_range = None
-                    st.caption(f"Data available: {min_date} se {max_date} tak. Checkbox ON karke koi bhi date/range chunein.")
+            date_range = st.date_input(
+                "Date select karein (ek date click karein ya range ke liye 2 dates)",
+                value=(min_date, max_date),
+                min_value=min_date,
+                max_value=max_date,
+                key="zone_date_filter",
+            )
 
             table_df = zone_df
-            if date_filter_on and date_range:
-                if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
-                    start_d, end_d = date_range
-                else:
-                    start_d = end_d = date_range if not isinstance(date_range, (tuple, list)) else date_range[0]
+            if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
+                start_d, end_d = date_range
                 table_df = zone_df[
                     (zone_df["Start"].dt.date >= start_d) & (zone_df["Start"].dt.date <= end_d)
                 ]
                 st.caption(f"🔍 {start_d} se {end_d} tak — **{len(table_df)}** zone(s) mile.")
+            elif date_range:
+                single_d = date_range[0] if isinstance(date_range, (tuple, list)) else date_range
+                table_df = zone_df[zone_df["Start"].dt.date == single_d]
+                st.caption(f"🔍 {single_d} — **{len(table_df)}** zone(s) mile.")
 
             st.dataframe(table_df, use_container_width=True, hide_index=True)
 
@@ -835,20 +829,20 @@ if "combo_results" in st.session_state:
             # Active/SL/Target) aaye, taaki khud month-wise (Aug/
             # Sept/Oct...) dekh sakein
             # ======================================================
-            with st.expander("📆 Calendar Summary — Date-wise Zone Count", expanded=False):
-                cal_df = zone_df.copy()
-                cal_df["Date"] = cal_df["Start"].dt.date
-                summary = (
-                    cal_df.groupby(["Date", "Status"]).size().unstack(fill_value=0).reset_index()
-                )
-                for col in ["FRESH", "ACTIVE", "SL", "TARGET"]:
-                    if col not in summary.columns:
-                        summary[col] = 0
-                summary["Total"] = summary[["FRESH", "ACTIVE", "SL", "TARGET"]].sum(axis=1)
-                summary = summary[["Date", "FRESH", "ACTIVE", "SL", "TARGET", "Total"]].sort_values(
-                    "Date", ascending=False
-                )
-                st.dataframe(summary, use_container_width=True, hide_index=True)
+            st.markdown("**📆 Calendar Summary — Date-wise Zone Count**")
+            cal_df = zone_df.copy()
+            cal_df["Date"] = cal_df["Start"].dt.date
+            summary = (
+                cal_df.groupby(["Date", "Status"]).size().unstack(fill_value=0).reset_index()
+            )
+            for col in ["FRESH", "ACTIVE", "SL", "TARGET"]:
+                if col not in summary.columns:
+                    summary[col] = 0
+            summary["Total"] = summary[["FRESH", "ACTIVE", "SL", "TARGET"]].sum(axis=1)
+            summary = summary[["Date", "FRESH", "ACTIVE", "SL", "TARGET", "Total"]].sort_values(
+                "Date", ascending=False
+            )
+            st.dataframe(summary, use_container_width=True, hide_index=True)
         else:
             st.info("Selected filter/timeframe/ticker combination me koi zone nahi mila.")
 
