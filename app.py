@@ -439,6 +439,21 @@ def resolve_status_filter(choice_list):
     return {STATUS_LABELS[c] for c in choice_list if c in STATUS_LABELS}
 
 
+def zone_display_status(z) -> str:
+    """
+    'active' status ke andar 2 alag situations hoti hain:
+      - zone abhi tak touch/enter nahi hua         -> FRESH
+      - zone touch/enter ho chuka (activated=True)
+        lekin abhi SL na Target hit hua            -> ACTIVE
+    SL / Target hit zones apna status waise hi rakhte hain.
+    """
+    if z.status == "sl":
+        return "SL"
+    if z.status == "tp":
+        return "TARGET"
+    return "FRESH" if not z.activated else "ACTIVE"
+
+
 @st.cache_data(show_spinner=False)
 def get_beep_b64(freq: int = 880, duration: float = 0.3, volume: float = 0.5, rate: int = 44100) -> str:
     n_samples = int(rate * duration)
@@ -629,8 +644,7 @@ if trigger_scan:
             st.session_state["telegram_sent_keys"].add(c["key"])
             if ok:
                 sent_count += 1
-                zone_status = c["event"]["zone"].status
-                status_text = "Fresh" if zone_status == "active" else zone_status.upper()
+                status_text = zone_display_status(c["event"]["zone"]).title()
                 st.success(f"✅ Telegram sent: {c['ticker']} [{c['interval']}] - {c['type']} ({status_text})")
             else:
                 st.warning(f"Telegram ({c['ticker']} [{c['interval']}]): {msg}")
@@ -733,7 +747,7 @@ if "combo_results" in st.session_state:
                 fillcolor=color, line=dict(width=1, color=color.replace("0.12", "0.6").replace("0.35", "0.9")),
             )
             fig.add_annotation(
-                x=x0, y=top, text=f"{z.pattern_name} {'Supply' if z.is_supply else 'Demand'} [{z.status.upper()}]",
+                x=x0, y=top, text=f"{z.pattern_name} {'Supply' if z.is_supply else 'Demand'} [{zone_display_status(z)}]",
                 showarrow=False, yshift=10, font=dict(size=9, color="white"),
                 bgcolor="#FF0000" if z.is_supply else "#00AA00",
             )
@@ -773,15 +787,68 @@ if "combo_results" in st.session_state:
                     "Proximal": round(z.proximal, 4),
                     "Distal": round(z.distal, 4),
                     "Target": round(z.target, 4),
-                    "Status": z.status.upper(),
+                    "Status": zone_display_status(z),
                 })
         if rows:
             zone_df = pd.DataFrame(rows)
             zone_df["Start"] = pd.to_datetime(zone_df["Start"], errors="coerce")
-            st.dataframe(
-                zone_df.sort_values("Start", ascending=False),
-                use_container_width=True, hide_index=True,
-            )
+            zone_df = zone_df.sort_values("Start", ascending=False)
+
+            # ======================================================
+            # 📅 DATE WISE FILTER — kisi bhi specific date ya range
+            # (Sept 3, Aug, Oct, etc.) ka result dekhne ke liye
+            # ======================================================
+            st.markdown("**📅 Date wise Result**")
+            min_date = zone_df["Start"].min().date()
+            max_date = zone_df["Start"].max().date()
+
+            dcol1, dcol2 = st.columns([1.2, 3])
+            with dcol1:
+                date_filter_on = st.checkbox("Specific date/range dekhein", value=False)
+            with dcol2:
+                if date_filter_on:
+                    date_range = st.date_input(
+                        "Date select karein (ek date ya range)",
+                        value=(min_date, max_date),
+                        min_value=min_date,
+                        max_value=max_date,
+                    )
+                else:
+                    date_range = None
+                    st.caption(f"Data available: {min_date} se {max_date} tak. Checkbox ON karke koi bhi date/range chunein.")
+
+            table_df = zone_df
+            if date_filter_on and date_range:
+                if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
+                    start_d, end_d = date_range
+                else:
+                    start_d = end_d = date_range if not isinstance(date_range, (tuple, list)) else date_range[0]
+                table_df = zone_df[
+                    (zone_df["Start"].dt.date >= start_d) & (zone_df["Start"].dt.date <= end_d)
+                ]
+                st.caption(f"🔍 {start_d} se {end_d} tak — **{len(table_df)}** zone(s) mile.")
+
+            st.dataframe(table_df, use_container_width=True, hide_index=True)
+
+            # ======================================================
+            # 📆 CALENDAR SUMMARY — konsi date ko kitne zone (Fresh/
+            # Active/SL/Target) aaye, taaki khud month-wise (Aug/
+            # Sept/Oct...) dekh sakein
+            # ======================================================
+            with st.expander("📆 Calendar Summary — Date-wise Zone Count", expanded=False):
+                cal_df = zone_df.copy()
+                cal_df["Date"] = cal_df["Start"].dt.date
+                summary = (
+                    cal_df.groupby(["Date", "Status"]).size().unstack(fill_value=0).reset_index()
+                )
+                for col in ["FRESH", "ACTIVE", "SL", "TARGET"]:
+                    if col not in summary.columns:
+                        summary[col] = 0
+                summary["Total"] = summary[["FRESH", "ACTIVE", "SL", "TARGET"]].sum(axis=1)
+                summary = summary[["Date", "FRESH", "ACTIVE", "SL", "TARGET", "Total"]].sort_values(
+                    "Date", ascending=False
+                )
+                st.dataframe(summary, use_container_width=True, hide_index=True)
         else:
             st.info("Selected filter/timeframe/ticker combination me koi zone nahi mila.")
 
