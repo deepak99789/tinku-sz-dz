@@ -318,11 +318,12 @@ with settings_box:
     with time_col1:
         time_period = st.radio(
             "Time Range",
-            ["📅 Today", "📅 Last 2 Days", "📅 1 Week", "📊 Custom"],
-            index=3,
+            ["📅 Today", "📅 Last 2 Days", "📅 1 Week", "🗓️ Specific Date", "📊 Custom"],
+            index=4,
             horizontal=False,
         )
     
+    specific_date = None
     with time_col2:
         if time_period == "📅 Today":
             period_display = "1d"
@@ -333,6 +334,17 @@ with settings_box:
         elif time_period == "📅 1 Week":
             period_display = "1mo"
             period_help = "Last 1 week of data"
+        elif time_period == "🗓️ Specific Date":
+            specific_date = st.date_input(
+                "Konsi date ka zone dekhna hai? (calendar se koi bhi din chunein)",
+                value=dt.date.today(),
+                max_value=dt.date.today(),
+            )
+            # Pattern detection ko peeche ke bars chahiye hote hain, isliye
+            # background me poora 1y data fetch hoga, phir result sirf
+            # is chuni hui date tak filter ho jayega.
+            period_display = "1y"
+            period_help = f"Specific Date: {specific_date} (result sirf isi date ka dikhega)"
         else:  # Custom
             period_display = st.selectbox(
                 "Select custom period",
@@ -351,6 +363,7 @@ with settings_box:
     
     # Use the selected period for scanning
     period = period_display
+    st.session_state["specific_date_filter"] = specific_date
     
     st.divider()
 
@@ -795,32 +808,15 @@ if "combo_results" in st.session_state:
             zone_df = zone_df.sort_values("Start", ascending=False)
 
             # ======================================================
-            # 📅 DATE WISE FILTER — kisi bhi specific date ya range
-            # (Sept 3, Aug, Oct, etc.) ka result dekhne ke liye
+            # 🗓️ Agar "Specific Date" mode chuna gaya hai (settings me
+            # upar Custom Time Period ke andar), to result sirf usi
+            # din tak automatically filter ho jayega.
             # ======================================================
-            st.markdown("**📅 Date wise Result**")
-            min_date = zone_df["Start"].min().date()
-            max_date = zone_df["Start"].max().date()
-
-            date_range = st.date_input(
-                "Date select karein (ek date click karein ya range ke liye 2 dates)",
-                value=(min_date, max_date),
-                min_value=min_date,
-                max_value=max_date,
-                key="zone_date_filter",
-            )
-
+            picked_date = st.session_state.get("specific_date_filter")
             table_df = zone_df
-            if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
-                start_d, end_d = date_range
-                table_df = zone_df[
-                    (zone_df["Start"].dt.date >= start_d) & (zone_df["Start"].dt.date <= end_d)
-                ]
-                st.caption(f"🔍 {start_d} se {end_d} tak — **{len(table_df)}** zone(s) mile.")
-            elif date_range:
-                single_d = date_range[0] if isinstance(date_range, (tuple, list)) else date_range
-                table_df = zone_df[zone_df["Start"].dt.date == single_d]
-                st.caption(f"🔍 {single_d} — **{len(table_df)}** zone(s) mile.")
+            if picked_date is not None:
+                table_df = zone_df[zone_df["Start"].dt.date == picked_date]
+                st.caption(f"🗓️ Sirf **{picked_date}** ka result — **{len(table_df)}** zone(s) mile.")
 
             st.dataframe(table_df, use_container_width=True, hide_index=True)
 
@@ -829,7 +825,7 @@ if "combo_results" in st.session_state:
             # Active/SL/Target) aaye, taaki khud month-wise (Aug/
             # Sept/Oct...) dekh sakein
             # ======================================================
-            st.markdown("**📆 Calendar Summary — Date-wise Zone Count**")
+            st.markdown("**📆 Date-wise Zone Count (sab dates ka summary)**")
             cal_df = zone_df.copy()
             cal_df["Date"] = cal_df["Start"].dt.date
             summary = (
