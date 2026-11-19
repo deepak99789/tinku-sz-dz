@@ -82,114 +82,133 @@ def _bool(series: pd.Series) -> pd.Series:
 def detect_patterns(
     df: pd.DataFrame,
     base_count_filter: str = "All",
+    max_base_count: int = 3,
+    proximal_method: str = "Wick to Wick",
+    legin_body_min: float = 65.0,
+    base_body_max: float = 50.0,
+    legout_body_min: float = 70.0,
 ) -> pd.DataFrame:
     """
-    Vectorised, per-bar pattern detection.
-    Adds boolean/aux columns to a copy of df and returns it.
-    base_count_filter: "1", "2", "3" or "All"
+    Direct Python port of Demand_Supply_Zones_PRO.pine.
+
+    A confirmed departure candle qualifies only when:
+      * leg-in body / range >= 65%
+      * every base candle body / range < 50%
+      * departure body / range >= 70%
+      * bullish close > highest base high, or bearish close < lowest base low
+    The longest valid base sequence (1..max_base_count) is selected.
     """
     d = df.copy()
-    o, c, h, l = d["Open"], d["Close"], d["High"], d["Low"]
+    n = len(d)
+    max_base_count = max(1, min(int(max_base_count), 3))
+    allowed = set(range(1, max_base_count + 1))
+    if str(base_count_filter) in {"1", "2", "3"}:
+        allowed &= {int(base_count_filter)}
 
-    p1_o, p1_c = o.shift(1), c.shift(1)
-    p2_o, p2_c = o.shift(2), c.shift(2)
-    p3_o, p3_c = o.shift(3), c.shift(3)
-    p4_o, p4_c = o.shift(4), c.shift(4)
+    # Pine-equivalent detection output columns.
+    for name in ("is_RBD", "is_DBD", "is_DBR", "is_RBR",
+                 "rbd_2base", "rbd_3base", "rbd_ext",
+                 "dbd_2base", "dbd_3base", "dbd_ext",
+                 "dbr_2base", "dbr_3base", "dbr_ext",
+                 "rbr_2base", "rbr_3base", "rbr_ext"):
+        d[name] = False
+    d["selected_base_count"] = 0
+    d["selected_zone_top"] = np.nan
+    d["selected_zone_bottom"] = np.nan
+    d["selected_pattern"] = ""
 
-    h1, h2, h3 = h.shift(1), h.shift(2), h.shift(3)
-    l1, l2, l3 = l.shift(1), l.shift(2), l.shift(3)
+    o = d["Open"].to_numpy(dtype=float)
+    c = d["Close"].to_numpy(dtype=float)
+    h = d["High"].to_numpy(dtype=float)
+    l = d["Low"].to_numpy(dtype=float)
 
-    t_c = h - l
-    t_p1 = h1 - l1
-    t_p2 = h2 - l2
-    t_p3 = h3 - l3
-    t_p4 = h.shift(4) - l.shift(4)
+    for i in range(n):
+        if not np.isfinite([o[i], c[i], h[i], l[i]]).all():
+            continue
+        if c[i] == o[i]:
+            continue
+        legout_range = h[i] - l[i]
+        if legout_range <= 0:
+            continue
+        legout_pct = abs(c[i] - o[i]) / legout_range * 100.0
+        if legout_pct < legout_body_min:
+            continue
 
-    is_p4_green, is_p4_red = p4_c > p4_o, p4_c < p4_o
-    is_p3_green, is_p3_red = p3_c > p3_o, p3_c < p3_o
-    is_p2_green, is_p2_red = p2_c > p2_o, p2_c < p2_o
-    is_p1_green, is_p1_red = p1_c > p1_o, p1_c < p1_o
-    is_c_green, is_c_red = c > o, c < o
+        is_demand = c[i] > o[i]
+        selected = None
 
-    l_in_norm = (p2_c - p2_o).abs() >= t_p2 * 0.6
-    l_out_norm = (c - o).abs() >= t_c * 0.6
-    l_in_ext = (p3_c - p3_o).abs() >= t_p3 * 0.6
-    l_out_ext = ((p1_c - p1_o).abs() >= t_p1 * 0.6) & ((c - o).abs() >= t_c * 0.6)
-    l_in_3 = (p4_c - p4_o).abs() >= t_p4 * 0.6
+        # Iterate ascending so each longer valid sequence replaces the shorter one.
+        for count in range(1, max_base_count + 1):
+            if count not in allowed:
+                continue
+            legin_idx = i - count - 1
+            base_start = i - count
+            if legin_idx < 0:
+                continue
 
-    allow_1 = base_count_filter in ("All", "1")
-    allow_2 = base_count_filter in ("All", "2")
-    allow_3 = base_count_filter in ("All", "3")
+            legin_range = h[legin_idx] - l[legin_idx]
+            if legin_range <= 0:
+                continue
+            legin_pct = abs(c[legin_idx] - o[legin_idx]) / legin_range * 100.0
+            if legin_pct < legin_body_min:
+                continue
 
-    def build(direction_leg_in_green, direction_leg_out_green, allow1, allow2, allow3):
-        legin1 = is_p2_green if direction_leg_in_green else is_p2_red
-        legin_ext = is_p3_green if direction_leg_in_green else is_p3_red
-        legin_3 = is_p4_green if direction_leg_in_green else is_p4_red
-        legout = is_c_green if direction_leg_out_green else is_c_red
-        p1_cont = is_p1_green if direction_leg_out_green else is_p1_red
+            base_indices = range(base_start, i)
+            base_valid = True
+            base_high = -np.inf
+            base_low = np.inf
+            body_high = -np.inf
+            body_low = np.inf
+            for j in base_indices:
+                base_range = h[j] - l[j]
+                if base_range <= 0:
+                    base_valid = False
+                    break
+                base_body_pct = abs(c[j] - o[j]) / base_range * 100.0
+                # Pine rejects >= 50%, so the valid condition is strictly less.
+                if base_body_pct >= base_body_max:
+                    base_valid = False
+                    break
+                base_high = max(base_high, h[j])
+                base_low = min(base_low, l[j])
+                body_high = max(body_high, max(o[j], c[j]))
+                body_low = min(body_low, min(o[j], c[j]))
+            if not base_valid:
+                continue
 
-        std_cond = legin1 & legout & l_in_norm & l_out_norm & (t_p1 <= t_p2 * 0.6) & (t_p2 >= t_p1 * 1.7)
-        std = std_cond & ((t_c >= t_p2 * 1.7) | (p1_cont & (t_p1 + t_c >= t_p2 * 1.7))) & allow1
+            departure_valid = c[i] > base_high if is_demand else c[i] < base_low
+            if not departure_valid:
+                continue
 
-        ext_cond = legin_ext & legout & l_in_ext & l_out_ext & (t_p2 <= t_p3 * 0.6) & (t_p3 >= t_p2 * 1.7)
-        ext = ext_cond & ((t_p1 >= t_p3 * 1.7) | (p1_cont & (t_p1 + t_c >= t_p3 * 1.7))) & allow1
+            # Wick-to-wick is the Pine default. Wick-to-body replaces only
+            # the proximal edge with the extreme base-body edge.
+            if proximal_method == "Wick to Body":
+                zone_top = body_high if is_demand else base_high
+                zone_bottom = base_low if is_demand else body_low
+            else:
+                zone_top, zone_bottom = base_high, base_low
 
-        base2_cond = (
-            legin_ext & legout & l_in_ext & l_out_norm
-            & (t_p2 <= t_p3 * 0.6) & (t_p1 <= t_p3 * 0.6)
-            & (t_p3 >= t_p2 * 1.7) & (t_p3 >= t_p1 * 1.7)
-        )
-        base2 = base2_cond & ((t_c >= t_p3 * 1.7) | (p1_cont & (t_p1 + t_c >= t_p3 * 1.7))) & allow2
+            selected = (count, zone_top, zone_bottom, legin_idx)
 
-        base3_cond = (
-            legin_3 & legout & l_in_3 & l_out_norm
-            & (t_p3 <= t_p4 * 0.6) & (t_p2 <= t_p4 * 0.6) & (t_p1 <= t_p4 * 0.6)
-            & (t_p4 >= t_p3 * 1.7) & (t_p4 >= t_p2 * 1.7) & (t_p4 >= t_p1 * 1.7)
-        )
-        base3 = base3_cond & ((t_c >= t_p4 * 1.7) | (p1_cont & (t_p1 + t_c >= t_p4 * 1.7))) & allow3
+        if selected is None:
+            continue
 
-        return _bool(std), _bool(ext), _bool(base2), _bool(base3)
+        count, zone_top, zone_bottom, legin_idx = selected
+        legin_green = c[legin_idx] > o[legin_idx]
+        if is_demand:
+            pattern = "RBR" if legin_green else "DBR"
+        else:
+            pattern = "RBD" if legin_green else "DBD"
 
-    rbd_std, rbd_ext, rbd_2b, rbd_3b = build(True, False, allow_1, allow_2, allow_3)
-    dbd_std, dbd_ext, dbd_2b, dbd_3b = build(False, False, allow_1, allow_2, allow_3)
-    dbr_std, dbr_ext, dbr_2b, dbr_3b = build(False, True, allow_1, allow_2, allow_3)
-    rbr_std, rbr_ext, rbr_2b, rbr_3b = build(True, True, allow_1, allow_2, allow_3)
-
-    def combine_supply(std, ext, b2, b3):
-        base_high = np.where(
-            b3, np.maximum(np.maximum(h3, h2), h1),
-            np.where(b2, np.maximum(h2, h1), np.where(std, h1, h2)),
-        )
-        w_ok = h <= base_high
-        is_pat = (std | ext | b2 | b3) & w_ok
-        return _bool(pd.Series(is_pat, index=d.index))
-
-    def combine_demand(std, ext, b2, b3):
-        base_low = np.where(
-            b3, np.minimum(np.minimum(l3, l2), l1),
-            np.where(b2, np.minimum(l2, l1), np.where(std, l1, l2)),
-        )
-        w_ok = l >= base_low
-        is_pat = (std | ext | b2 | b3) & w_ok
-        return _bool(pd.Series(is_pat, index=d.index))
-
-    d["is_RBD"] = combine_supply(rbd_std, rbd_ext, rbd_2b, rbd_3b)
-    d["is_DBD"] = combine_supply(dbd_std, dbd_ext, dbd_2b, dbd_3b)
-    d["is_DBR"] = combine_demand(dbr_std, dbr_ext, dbr_2b, dbr_3b)
-    d["is_RBR"] = combine_demand(rbr_std, rbr_ext, rbr_2b, rbr_3b)
-
-    d["rbd_2base"], d["rbd_3base"], d["rbd_ext"] = rbd_2b, rbd_3b, rbd_ext
-    d["dbd_2base"], d["dbd_3base"], d["dbd_ext"] = dbd_2b, dbd_3b, dbd_ext
-    d["dbr_2base"], d["dbr_3base"], d["dbr_ext"] = dbr_2b, dbr_3b, dbr_ext
-    d["rbr_2base"], d["rbr_3base"], d["rbr_ext"] = rbr_2b, rbr_3b, rbr_ext
-
-    h4 = h.shift(4)
-    l4 = l.shift(4)
-
-    for n, s in [("o1", p1_o), ("c1", p1_c), ("o2", p2_o), ("c2", p2_c),
-                 ("o3", p3_o), ("c3", p3_c), ("h1", h1), ("h2", h2), ("h3", h3),
-                 ("l1", l1), ("l2", l2), ("l3", l3), ("h4", h4), ("l4", l4)]:
-        d[n] = s
+        d.iat[i, d.columns.get_loc("selected_base_count")] = count
+        d.iat[i, d.columns.get_loc("selected_zone_top")] = zone_top
+        d.iat[i, d.columns.get_loc("selected_zone_bottom")] = zone_bottom
+        d.iat[i, d.columns.get_loc("selected_pattern")] = pattern
+        d.iat[i, d.columns.get_loc("is_" + pattern)] = True
+        if count == 2:
+            d.iat[i, d.columns.get_loc(pattern.lower() + "_2base")] = True
+        elif count == 3:
+            d.iat[i, d.columns.get_loc(pattern.lower() + "_3base")] = True
 
     return d
 
@@ -275,96 +294,30 @@ def _validate_legin_legout(d: pd.DataFrame, i: int, is_supply: bool) -> bool:
 
 
 def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
-    is3 = bool(d["rbd_3base"].iloc[i] or d["dbd_3base"].iloc[i])
-    is2 = bool(d["rbd_2base"].iloc[i] or d["dbd_2base"].iloc[i])
-    isExt = bool(d["rbd_ext"].iloc[i] or d["dbd_ext"].iloc[i])
-    is_rbd = bool(d["is_RBD"].iloc[i])
-
-    o1, c1 = d["o1"].iloc[i], d["c1"].iloc[i]
-    o2, c2 = d["o2"].iloc[i], d["c2"].iloc[i]
-    o3, c3 = d["o3"].iloc[i], d["c3"].iloc[i]
-    h1, h2, h3 = d["h1"].iloc[i], d["h2"].iloc[i], d["h3"].iloc[i]
-
-    if is3:
-        proximal = min(min(o3, c3), min(o2, c2), min(o1, c1))
-        distal = max(h3, h2, h1) + atr_buffer
-        base_idx = 3
-        tag = " 3C"
-    elif is2:
-        proximal = min(min(o2, c2), min(o1, c1))
-        distal = max(h2, h1) + atr_buffer
-        base_idx = 2
-        tag = " 2C"
-    else:
-        base_idx = 2 if isExt else 1
-        o_b, c_b = (o2, c2) if isExt else (o1, c1)
-        h_b = h2 if isExt else h1
-        proximal = min(o_b, c_b)
-        distal = h_b + atr_buffer
-        tag = ""
-
-    risk = distal - proximal
-    target = proximal - risk * 3.0
-    name = ("RBD" if is_rbd else "DBD") + tag
-    base_count = 3 if is3 else (2 if is2 else 1)
-    legout_count = 2 if (isExt and not is3 and not is2) else 1
+    count = int(d["selected_base_count"].iloc[i])
+    top = float(d["selected_zone_top"].iloc[i])
+    bottom = float(d["selected_zone_bottom"].iloc[i])
+    name = str(d["selected_pattern"].iloc[i])
+    entry = bottom
+    stop = top
     return Zone(
-        start_bar=i - base_idx,
-        end_bar=i,
-        proximal=proximal,
-        distal=distal,
-        target=target,
-        is_supply=True,
-        pattern_name=name,
-        base_count=base_count,
-        legout_count=legout_count,
+        start_bar=i - count, end_bar=i, proximal=entry, distal=stop,
+        target=entry - (stop - entry) * 3.0, is_supply=True,
+        pattern_name=name, base_count=count, legout_count=1,
     )
 
 
 def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
-    is3 = bool(d["dbr_3base"].iloc[i] or d["rbr_3base"].iloc[i])
-    is2 = bool(d["dbr_2base"].iloc[i] or d["rbr_2base"].iloc[i])
-    isExt = bool(d["dbr_ext"].iloc[i] or d["rbr_ext"].iloc[i])
-    is_dbr = bool(d["is_DBR"].iloc[i])
-
-    o1, c1 = d["o1"].iloc[i], d["c1"].iloc[i]
-    o2, c2 = d["o2"].iloc[i], d["c2"].iloc[i]
-    o3, c3 = d["o3"].iloc[i], d["c3"].iloc[i]
-    l1, l2, l3 = d["l1"].iloc[i], d["l2"].iloc[i], d["l3"].iloc[i]
-
-    if is3:
-        proximal = max(max(o3, c3), max(o2, c2), max(o1, c1))
-        distal = min(l3, l2, l1) - atr_buffer
-        base_idx = 3
-        tag = " 3C"
-    elif is2:
-        proximal = max(max(o2, c2), max(o1, c1))
-        distal = min(l2, l1) - atr_buffer
-        base_idx = 2
-        tag = " 2C"
-    else:
-        base_idx = 2 if isExt else 1
-        o_b, c_b = (o2, c2) if isExt else (o1, c1)
-        l_b = l2 if isExt else l1
-        proximal = max(o_b, c_b)
-        distal = l_b - atr_buffer
-        tag = ""
-
-    risk = proximal - distal
-    target = proximal + risk * 3.0
-    name = ("DBR" if is_dbr else "RBR") + tag
-    base_count = 3 if is3 else (2 if is2 else 1)
-    legout_count = 2 if (isExt and not is3 and not is2) else 1
+    count = int(d["selected_base_count"].iloc[i])
+    top = float(d["selected_zone_top"].iloc[i])
+    bottom = float(d["selected_zone_bottom"].iloc[i])
+    name = str(d["selected_pattern"].iloc[i])
+    entry = top
+    stop = bottom
     return Zone(
-        start_bar=i - base_idx,
-        end_bar=i,
-        proximal=proximal,
-        distal=distal,
-        target=target,
-        is_supply=False,
-        pattern_name=name,
-        base_count=base_count,
-        legout_count=legout_count,
+        start_bar=i - count, end_bar=i, proximal=entry, distal=stop,
+        target=entry + (entry - stop) * 3.0, is_supply=False,
+        pattern_name=name, base_count=count, legout_count=1,
     )
 
 
@@ -517,8 +470,10 @@ def run_full_pipeline(
     pre_entry_mult: float = 1.5,
     base_count_filter: str = "All",
     validation_checklist: bool = False,
+    proximal_method: str = "Wick to Wick",
+    max_base_count: int = 3,
 ) -> DetectionResult:
-    d = detect_patterns(df, base_count_filter=base_count_filter)
+    d = detect_patterns(df, base_count_filter=base_count_filter, proximal_method=proximal_method, max_base_count=max_base_count)
     atr_series = wilder_atr(df, atr_length)
     result = track_zones(
         d, atr_series, atr_multiplier, rr_target, pre_entry_mult,
