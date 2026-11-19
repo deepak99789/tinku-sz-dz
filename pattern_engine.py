@@ -100,6 +100,12 @@ def detect_patterns(
     """
     d = df.copy()
     n = len(d)
+    # Preserve shifted OHLC columns used by the optional legacy validation checklist.
+    for offset in range(1, 5):
+        d[f"h{offset}"] = d["High"].shift(offset)
+        d[f"l{offset}"] = d["Low"].shift(offset)
+        d[f"o{offset}"] = d["Open"].shift(offset)
+        d[f"c{offset}"] = d["Close"].shift(offset)
     max_base_count = max(1, min(int(max_base_count), 3))
     allowed = set(range(1, max_base_count + 1))
     if str(base_count_filter) in {"1", "2", "3"}:
