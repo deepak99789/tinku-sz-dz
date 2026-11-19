@@ -386,6 +386,12 @@ with settings_box:
             help="Sirf wahi zones dikhao jinka legout candle count is value ke barabar ho.",
         )
 
+    row2c_c1, row2c_c2 = st.columns([1.2, 1.8])
+    with row2c_c1:
+        max_base_count = st.selectbox("Max Base Candles", [1, 2, 3], index=2)
+    with row2c_c2:
+        proximal_method = st.selectbox("Zone Boundary", ["Wick to Wick", "Wick to Body"], index=0)
+
     row2b_c1, row2b_c2 = st.columns([1.6, 3])
     with row2b_c1:
         validation_checklist_on = st.checkbox(
@@ -563,6 +569,8 @@ if trigger_scan:
                 pre_entry_mult=pre_entry_mult,
                 base_count_filter=base_count_filter,
                 validation_checklist=validation_checklist_on,
+                proximal_method=proximal_method,
+                max_base_count=max_base_count,
             )
             combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
 
