@@ -293,7 +293,7 @@ def main():
                 if len(df) > 1:
                     df = df.iloc[:-1].copy()
 
-            result = run_full_pipeline(
+                result = run_full_pipeline(
                     df,
                     atr_length=ATR_LENGTH,
                     atr_multiplier=ATR_MULTIPLIER,
