@@ -142,6 +142,8 @@ ATR_MULTIPLIER = 0.35
 RR_TARGET = 3.0
 PRE_ENTRY_MULT = 1.5
 BASE_COUNT_FILTER = "All"
+MAX_BASE_COUNT = 3
+PROXIMAL_METHOD = "Wick to Wick"
 ONLY_LATEST_BAR = True
 DEBOUNCE_SECONDS = 3600
 BATCH_SIZE = 5
@@ -293,6 +295,8 @@ def main():
                     rr_target=RR_TARGET,
                     pre_entry_mult=PRE_ENTRY_MULT,
                     base_count_filter=BASE_COUNT_FILTER,
+                    max_base_count=MAX_BASE_COUNT,
+                    proximal_method=PROXIMAL_METHOD,
                 )
             except Exception as e:
                 logger.error(f"❌ Error running pipeline: {e}")
