@@ -89,36 +89,41 @@ def detect_patterns(
     legout_body_min: float = 70.0,
 ) -> pd.DataFrame:
     """
-    Direct Python port of Demand_Supply_Zones_PRO.pine.
+    Detect RBD/DBD/DBR/RBR patterns using closed OHLC candles.
 
-    A confirmed departure candle qualifies only when:
-      * leg-in body / range >= 65%
-      * every base candle body / range < 50%
-      * departure body / range >= 70%
-      * bullish close > highest base high, or bearish close < lowest base low
-    The longest valid base sequence (1..max_base_count) is selected.
+    Range-strength filter:
+      * 1 leg-out candle: its High-Low range must be > leg-in range.
+      * 2 leg-out candles: sum of both High-Low ranges must be > leg-in range.
+
+    Existing body-percentage filters and base/departure rules remain active.
     """
     d = df.copy()
     n = len(d)
-    # Preserve shifted OHLC columns used by the optional legacy validation checklist.
-    for offset in range(1, 5):
+
+    # Shifted OHLC values are retained for the optional validation checklist.
+    for offset in range(1, 6):
         d[f"h{offset}"] = d["High"].shift(offset)
         d[f"l{offset}"] = d["Low"].shift(offset)
         d[f"o{offset}"] = d["Open"].shift(offset)
         d[f"c{offset}"] = d["Close"].shift(offset)
+
     max_base_count = max(1, min(int(max_base_count), 3))
     allowed = set(range(1, max_base_count + 1))
     if str(base_count_filter) in {"1", "2", "3"}:
         allowed &= {int(base_count_filter)}
 
-    # Pine-equivalent detection output columns.
-    for name in ("is_RBD", "is_DBD", "is_DBR", "is_RBR",
-                 "rbd_2base", "rbd_3base", "rbd_ext",
-                 "dbd_2base", "dbd_3base", "dbd_ext",
-                 "dbr_2base", "dbr_3base", "dbr_ext",
-                 "rbr_2base", "rbr_3base", "rbr_ext"):
+    flag_columns = (
+        "is_RBD", "is_DBD", "is_DBR", "is_RBR",
+        "rbd_2base", "rbd_3base", "rbd_ext",
+        "dbd_2base", "dbd_3base", "dbd_ext",
+        "dbr_2base", "dbr_3base", "dbr_ext",
+        "rbr_2base", "rbr_3base", "rbr_ext",
+    )
+    for name in flag_columns:
         d[name] = False
+
     d["selected_base_count"] = 0
+    d["selected_legout_count"] = 0
     d["selected_zone_top"] = np.nan
     d["selected_zone_bottom"] = np.nan
     d["selected_pattern"] = ""
@@ -128,78 +133,106 @@ def detect_patterns(
     h = d["High"].to_numpy(dtype=float)
     l = d["Low"].to_numpy(dtype=float)
 
+    def body_pct(idx: int) -> float:
+        candle_range = h[idx] - l[idx]
+        if candle_range <= 0:
+            return -1.0
+        return abs(c[idx] - o[idx]) / candle_range * 100.0
+
     for i in range(n):
-        if not np.isfinite([o[i], c[i], h[i], l[i]]).all():
-            continue
-        if c[i] == o[i]:
-            continue
-        legout_range = h[i] - l[i]
-        if legout_range <= 0:
-            continue
-        legout_pct = abs(c[i] - o[i]) / legout_range * 100.0
-        if legout_pct < legout_body_min:
+        if not np.isfinite([o[i], c[i], h[i], l[i]]).all() or c[i] == o[i]:
             continue
 
         is_demand = c[i] > o[i]
+        direction = 1 if is_demand else -1
         selected = None
 
-        # Iterate ascending so each longer valid sequence replaces the shorter one.
+        # Prefer a valid one-candle departure when both variants qualify.
+        # Longer base sequences still take priority, as in the Pine script.
         for count in range(1, max_base_count + 1):
             if count not in allowed:
                 continue
-            legin_idx = i - count - 1
-            base_start = i - count
-            if legin_idx < 0:
-                continue
 
-            legin_range = h[legin_idx] - l[legin_idx]
-            if legin_range <= 0:
-                continue
-            legin_pct = abs(c[legin_idx] - o[legin_idx]) / legin_range * 100.0
-            if legin_pct < legin_body_min:
-                continue
+            for legout_count in (2, 1):
+                first_legout_idx = i - legout_count + 1
+                last_base_idx = first_legout_idx - 1
+                first_base_idx = last_base_idx - count + 1
+                legin_idx = first_base_idx - 1
 
-            base_indices = range(base_start, i)
-            base_valid = True
-            base_high = -np.inf
-            base_low = np.inf
-            body_high = -np.inf
-            body_low = np.inf
-            for j in base_indices:
-                base_range = h[j] - l[j]
-                if base_range <= 0:
-                    base_valid = False
-                    break
-                base_body_pct = abs(c[j] - o[j]) / base_range * 100.0
-                # Pine rejects >= 50%, so the valid condition is strictly less.
-                if base_body_pct >= base_body_max:
-                    base_valid = False
-                    break
-                base_high = max(base_high, h[j])
-                base_low = min(base_low, l[j])
-                body_high = max(body_high, max(o[j], c[j]))
-                body_low = min(body_low, min(o[j], c[j]))
-            if not base_valid:
-                continue
+                if legin_idx < 0:
+                    continue
 
-            departure_valid = c[i] > base_high if is_demand else c[i] < base_low
-            if not departure_valid:
-                continue
+                # Every leg-out candle must be in the departure direction
+                # and pass the existing minimum body/range percentage filter.
+                legout_valid = True
+                combined_legout_range = 0.0
+                for k in range(first_legout_idx, i + 1):
+                    if not np.isfinite([o[k], c[k], h[k], l[k]]).all():
+                        legout_valid = False
+                        break
+                    if (c[k] - o[k]) * direction <= 0:
+                        legout_valid = False
+                        break
+                    if body_pct(k) < legout_body_min:
+                        legout_valid = False
+                        break
+                    candle_range = h[k] - l[k]
+                    if candle_range <= 0:
+                        legout_valid = False
+                        break
+                    combined_legout_range += candle_range
 
-            # Wick-to-wick is the Pine default. Wick-to-body replaces only
-            # the proximal edge with the extreme base-body edge.
-            if proximal_method == "Wick to Body":
-                zone_top = body_high if is_demand else base_high
-                zone_bottom = base_low if is_demand else body_low
-            else:
-                zone_top, zone_bottom = base_high, base_low
+                if not legout_valid:
+                    continue
 
-            selected = (count, zone_top, zone_bottom, legin_idx)
+                legin_range = h[legin_idx] - l[legin_idx]
+                if legin_range <= 0:
+                    continue
+                legin_pct = body_pct(legin_idx)
+                if legin_pct < legin_body_min:
+                    continue
+
+                # Requested comparative range condition.
+                if combined_legout_range <= legin_range:
+                    continue
+
+                base_valid = True
+                base_high = -np.inf
+                base_low = np.inf
+                body_high = -np.inf
+                body_low = np.inf
+
+                for j in range(first_base_idx, last_base_idx + 1):
+                    base_range = h[j] - l[j]
+                    if base_range <= 0 or body_pct(j) < 0 or body_pct(j) >= base_body_max:
+                        base_valid = False
+                        break
+                    base_high = max(base_high, h[j])
+                    base_low = min(base_low, l[j])
+                    body_high = max(body_high, max(o[j], c[j]))
+                    body_low = min(body_low, min(o[j], c[j]))
+
+                if not base_valid:
+                    continue
+
+                departure_valid = c[i] > base_high if is_demand else c[i] < base_low
+                if not departure_valid:
+                    continue
+
+                if proximal_method == "Wick to Body":
+                    zone_top = body_high if is_demand else base_high
+                    zone_bottom = base_low if is_demand else body_low
+                else:
+                    zone_top, zone_bottom = base_high, base_low
+
+                selected = (
+                    count, legout_count, zone_top, zone_bottom, legin_idx
+                )
 
         if selected is None:
             continue
 
-        count, zone_top, zone_bottom, legin_idx = selected
+        count, legout_count, zone_top, zone_bottom, legin_idx = selected
         legin_green = c[legin_idx] > o[legin_idx]
         if is_demand:
             pattern = "RBR" if legin_green else "DBR"
@@ -207,14 +240,18 @@ def detect_patterns(
             pattern = "RBD" if legin_green else "DBD"
 
         d.iat[i, d.columns.get_loc("selected_base_count")] = count
+        d.iat[i, d.columns.get_loc("selected_legout_count")] = legout_count
         d.iat[i, d.columns.get_loc("selected_zone_top")] = zone_top
         d.iat[i, d.columns.get_loc("selected_zone_bottom")] = zone_bottom
         d.iat[i, d.columns.get_loc("selected_pattern")] = pattern
         d.iat[i, d.columns.get_loc("is_" + pattern)] = True
+
         if count == 2:
             d.iat[i, d.columns.get_loc(pattern.lower() + "_2base")] = True
         elif count == 3:
             d.iat[i, d.columns.get_loc(pattern.lower() + "_3base")] = True
+        if legout_count == 2:
+            d.iat[i, d.columns.get_loc(pattern.lower() + "_ext")] = True
 
     return d
 
@@ -235,81 +272,55 @@ def detect_patterns(
 #      by the legout candle's body. The legout's wick is allowed to dip
 #      into / cover the base body, but its body may not.
 # --------------------------------------------------------------------------
-def _pattern_shape_flags(d: pd.DataFrame, i: int, is_supply: bool):
-    """Returns (is_3base, is_2base, is_ext) for the pattern detected at row i."""
-    if is_supply:
-        is3 = bool(d["rbd_3base"].iloc[i] or d["dbd_3base"].iloc[i])
-        is2 = bool(d["rbd_2base"].iloc[i] or d["dbd_2base"].iloc[i])
-        isExt = bool(d["rbd_ext"].iloc[i] or d["dbd_ext"].iloc[i])
-    else:
-        is3 = bool(d["dbr_3base"].iloc[i] or d["rbr_3base"].iloc[i])
-        is2 = bool(d["dbr_2base"].iloc[i] or d["rbr_2base"].iloc[i])
-        isExt = bool(d["dbr_ext"].iloc[i] or d["rbr_ext"].iloc[i])
-    return is3, is2, isExt
-
-
 def _validate_legin_legout(d: pd.DataFrame, i: int, is_supply: bool) -> bool:
-    is3, is2, isExt = _pattern_shape_flags(d, i, is_supply)
-    row = d.iloc[i]
-
-    if is3:
-        legin_high, legin_low = row["h4"], row["l4"]
-        base_opens = [row["o1"], row["o2"], row["o3"]]
-        base_closes = [row["c1"], row["c2"], row["c3"]]
-        legout_open = row["Open"]
-    elif is2:
-        legin_high, legin_low = row["h3"], row["l3"]
-        base_opens = [row["o1"], row["o2"]]
-        base_closes = [row["c1"], row["c2"]]
-        legout_open = row["Open"]
-    elif isExt:
-        # base = candle 2 bars back (o2/c2); legout spans 2 candles (o1..c),
-        # the first legout candle (o1) is the one breaking away from base.
-        legin_high, legin_low = row["h3"], row["l3"]
-        base_opens = [row["o2"]]
-        base_closes = [row["c2"]]
-        legout_open = row["o1"]
-    else:  # std
-        legin_high, legin_low = row["h2"], row["l2"]
-        base_opens = [row["o1"]]
-        base_closes = [row["c1"]]
-        legout_open = row["Open"]
-
-    vals = base_opens + base_closes + [legin_high, legin_low, legout_open]
-    if any(pd.isna(v) for v in vals):
+    """Apply the optional legacy open-gap checklist to the selected pattern."""
+    count = int(d["selected_base_count"].iloc[i])
+    legout_count = int(d["selected_legout_count"].iloc[i])
+    if count <= 0 or legout_count <= 0:
         return False
 
-    # --- condition 1: legout open must be within legin candle's H-L range ---
+    first_legout_idx = i - legout_count + 1
+    last_base_idx = first_legout_idx - 1
+    first_base_idx = last_base_idx - count + 1
+    legin_idx = first_base_idx - 1
+
+    if legin_idx < 0:
+        return False
+
+    legin_high = d["High"].iloc[legin_idx]
+    legin_low = d["Low"].iloc[legin_idx]
+    legout_open = d["Open"].iloc[first_legout_idx]
+    base = d.iloc[first_base_idx:last_base_idx + 1]
+
+    if base.empty or base[["Open", "Close"]].isna().any().any():
+        return False
+    if pd.isna(legin_high) or pd.isna(legin_low) or pd.isna(legout_open):
+        return False
+
+    # First leg-out candle must open inside the leg-in candle's full range.
     if not (legin_low <= legout_open <= legin_high):
         return False
 
-    # --- condition 2: legout open must gap cleanly beyond base body ---
-    base_body_high = max(max(base_opens), max(base_closes))
-    base_body_low = min(min(base_opens), min(base_closes))
+    base_body_high = max(base["Open"].max(), base["Close"].max())
+    base_body_low = min(base["Open"].min(), base["Close"].min())
 
     if is_supply:
-        # legout is bearish -> should open gapped DOWN from base's body
-        if not (legout_open < base_body_low):
-            return False
-    else:
-        # legout is bullish -> should open gapped UP from base's body
-        if not (legout_open > base_body_high):
-            return False
-
-    return True
+        return bool(legout_open < base_body_low)
+    return bool(legout_open > base_body_high)
 
 
 def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     count = int(d["selected_base_count"].iloc[i])
+    legout_count = int(d["selected_legout_count"].iloc[i])
     top = float(d["selected_zone_top"].iloc[i])
     bottom = float(d["selected_zone_bottom"].iloc[i])
     name = str(d["selected_pattern"].iloc[i])
     entry = bottom
     stop = top
     return Zone(
-        start_bar=i - count, end_bar=i, proximal=entry, distal=stop,
+        start_bar=i - count - legout_count, end_bar=i, proximal=entry, distal=stop,
         target=entry - (stop - entry) * 3.0, is_supply=True,
-        pattern_name=name, base_count=count, legout_count=1,
+        pattern_name=name, base_count=count, legout_count=legout_count,
     )
 
 
@@ -321,9 +332,9 @@ def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     entry = top
     stop = bottom
     return Zone(
-        start_bar=i - count, end_bar=i, proximal=entry, distal=stop,
+        start_bar=i - count - legout_count, end_bar=i, proximal=entry, distal=stop,
         target=entry + (entry - stop) * 3.0, is_supply=False,
-        pattern_name=name, base_count=count, legout_count=1,
+        pattern_name=name, base_count=count, legout_count=legout_count,
     )
 
 
