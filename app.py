@@ -392,6 +392,22 @@ with settings_box:
     with row2c_c2:
         proximal_method = st.selectbox("Zone Boundary", ["Wick to Wick", "Wick to Body"], index=0)
 
+    is_india_or_us = market.startswith(("🇮🇳", "🇺🇸"))
+    st.markdown("**📏 Candle Range Ratio Rules (Indian + US only)**")
+    ratio_c1, ratio_c2 = st.columns(2)
+    with ratio_c1:
+        legin_to_base_range_ratio = st.number_input(
+            "Leg-in Range / Base Range (x)", min_value=1.0, max_value=5.0,
+            value=1.0, step=0.1, disabled=not is_india_or_us,
+            help="1.7 ka matlab: Leg-in candle ka range har Base candle se kam-se-kam 1.7x hona chahiye."
+        )
+    with ratio_c2:
+        legout_to_legin_range_ratio = st.number_input(
+            "Leg-out Range / Leg-in Range (x)", min_value=1.0, max_value=5.0,
+            value=1.0, step=0.1, disabled=not is_india_or_us,
+            help="1.5 ka matlab: 1 leg-out ka range, ya 2 leg-out candles ke combined range ko, Leg-in range se 1.5x se zyada hona chahiye."
+        )
+
     row2b_c1, row2b_c2 = st.columns([1.6, 3])
     with row2b_c1:
         validation_checklist_on = st.checkbox(
@@ -576,7 +592,9 @@ if trigger_scan:
                 validation_checklist=validation_checklist_on,
                 proximal_method=proximal_method,
                 max_base_count=max_base_count,
-                base_range_max_legin=market.startswith(("🇮🇳", "🇺🇸")),
+                base_range_max_legin=is_india_or_us,
+                legin_to_base_range_ratio=legin_to_base_range_ratio if is_india_or_us else 1.0,
+                legout_to_legin_range_ratio=legout_to_legin_range_ratio if is_india_or_us else 1.0,
             )
             combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
 
