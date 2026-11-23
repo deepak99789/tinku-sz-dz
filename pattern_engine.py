@@ -153,7 +153,7 @@ def detect_patterns(
             if count not in allowed:
                 continue
 
-            for legout_count in (2, 1):
+            for legout_count in (1, 2):
                 first_legout_idx = i - legout_count + 1
                 last_base_idx = first_legout_idx - 1
                 first_base_idx = last_base_idx - count + 1
