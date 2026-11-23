@@ -326,13 +326,14 @@ def _zone_from_supply_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
 
 def _zone_from_demand_row(d: pd.DataFrame, i: int, atr_buffer: float) -> Zone:
     count = int(d["selected_base_count"].iloc[i])
+    legout_count = int(d["selected_legout_count"].iloc[i])
     top = float(d["selected_zone_top"].iloc[i])
     bottom = float(d["selected_zone_bottom"].iloc[i])
     name = str(d["selected_pattern"].iloc[i])
     entry = top
     stop = bottom
     return Zone(
-        start_bar=i - count - legout_count, end_bar=i, proximal=entry, distal=stop,
+        start_bar=i - count - legout_count + 1, end_bar=i, proximal=entry, distal=stop,
         target=entry + (entry - stop) * 3.0, is_supply=False,
         pattern_name=name, base_count=count, legout_count=legout_count,
     )
