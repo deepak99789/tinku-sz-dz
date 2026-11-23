@@ -576,6 +576,7 @@ if trigger_scan:
                 validation_checklist=validation_checklist_on,
                 proximal_method=proximal_method,
                 max_base_count=max_base_count,
+                base_range_max_legin=market.startswith(("🇮🇳", "🇺🇸")),
             )
             combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
 
