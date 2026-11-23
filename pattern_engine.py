@@ -147,7 +147,7 @@ def detect_patterns(
         direction = 1 if is_demand else -1
         selected = None
 
-        # Prefer a valid one-candle departure when both variants qualify.
+        # Prefer a valid two-candle departure when both variants qualify.
         # Longer base sequences still take priority, as in the Pine script.
         for count in range(1, max_base_count + 1):
             if count not in allowed:
