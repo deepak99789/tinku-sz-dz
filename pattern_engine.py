@@ -87,6 +87,7 @@ def detect_patterns(
     legin_body_min: float = 65.0,
     base_body_max: float = 50.0,
     legout_body_min: float = 70.0,
+    base_range_max_legin: bool = False,
 ) -> pd.DataFrame:
     """
     Detect RBD/DBD/DBR/RBR patterns using closed OHLC candles.
@@ -96,6 +97,8 @@ def detect_patterns(
       * 2 leg-out candles: sum of both High-Low ranges must be > leg-in range.
 
     Existing body-percentage filters and base/departure rules remain active.
+    When base_range_max_legin=True, every base candle's High-Low range must
+    be less than or equal to the leg-in candle's High-Low range.
     """
     d = df.copy()
     n = len(d)
@@ -205,6 +208,9 @@ def detect_patterns(
                 for j in range(first_base_idx, last_base_idx + 1):
                     base_range = h[j] - l[j]
                     if base_range <= 0 or body_pct(j) < 0 or body_pct(j) >= base_body_max:
+                        base_valid = False
+                        break
+                    if base_range_max_legin and base_range > legin_range:
                         base_valid = False
                         break
                     base_high = max(base_high, h[j])
@@ -490,8 +496,12 @@ def run_full_pipeline(
     validation_checklist: bool = False,
     proximal_method: str = "Wick to Wick",
     max_base_count: int = 3,
+    base_range_max_legin: bool = False,
 ) -> DetectionResult:
-    d = detect_patterns(df, base_count_filter=base_count_filter, proximal_method=proximal_method, max_base_count=max_base_count)
+    d = detect_patterns(
+        df, base_count_filter=base_count_filter, proximal_method=proximal_method,
+        max_base_count=max_base_count, base_range_max_legin=base_range_max_legin,
+    )
     atr_series = wilder_atr(df, atr_length)
     result = track_zones(
         d, atr_series, atr_multiplier, rr_target, pre_entry_mult,
