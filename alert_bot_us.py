@@ -200,7 +200,8 @@ def main():
                                            rr_target=RR_TARGET, pre_entry_mult=PRE_ENTRY_MULT,
                                            base_count_filter=BASE_COUNT_FILTER,
                                            max_base_count=MAX_BASE_COUNT,
-                                           proximal_method=PROXIMAL_METHOD)
+                                           proximal_method=PROXIMAL_METHOD,
+                                           base_range_max_legin=True)
             except Exception as e:
                 logger.error(f"❌ Error: {e}")
                 continue
