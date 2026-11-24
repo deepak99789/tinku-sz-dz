@@ -11,8 +11,9 @@ import logging
 import time
 
 import pandas as pd
-import yfinance as yf
 
+from data_sources import fetch_ohlcv
+from timeframe_builder import SUPPORTED_TIMEFRAMES
 from pattern_engine import run_full_pipeline
 from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
@@ -21,10 +22,7 @@ from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_I
 # ⚙️ CONFIG - SUPPORTED TIMEFRAMES (REAL DATA)
 # ==========================================================================
 
-INTERVALS = [
-    "5m", "15m", "30m", "60m", "90m",
-    "1d", "1wk", "1mo", "3mo"
-]
+INTERVALS = SUPPORTED_TIMEFRAMES
 
 FOREX_TICKERS = [
     "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", 
@@ -103,27 +101,17 @@ def get_yf_interval(itv: str) -> str:
 
 
 def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
-    yf_interval = get_yf_interval(itv)
+    """Shared provider fetch with a conservative period fallback."""
     idx = PERIOD_LADDER.index(requested_period) if requested_period in PERIOD_LADDER else 0
-    for cand in [PERIOD_LADDER[i] for i in range(idx, -1, -1)]:
+    for candidate in [PERIOD_LADDER[i] for i in range(idx, -1, -1)]:
         try:
-            df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False)
-        except Exception:
+            frame = fetch_ohlcv(tkr, itv, period=candidate)
+        except Exception as exc:
+            logger.warning("Data fetch failed for %s [%s]: %s", tkr, itv, exc)
             continue
-        if df.empty:
-            continue
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        df = df[["Open", "High", "Low", "Close"]].dropna()
-        if not df.empty:
-            return df
+        if frame is not None and not frame.empty:
+            return frame
     return pd.DataFrame()
-
-
-# ==========================================================================
-# 🔥 STATE FILE FUNCTIONS - FIXED WITH FORCE SAVE
-# ==========================================================================
-
 def load_state() -> set:
     if os.path.exists(STATE_FILE):
         try:
