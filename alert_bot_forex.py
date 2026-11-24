@@ -16,6 +16,7 @@ import yfinance as yf
 from pattern_engine import run_full_pipeline
 from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
+from forex_data import FOREX_TICKERS, fetch_forex_data
 
 # ==========================================================================
 # ⚙️ CONFIG - SUPPORTED TIMEFRAMES (REAL DATA)
@@ -24,17 +25,6 @@ from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_I
 INTERVALS = [
     "5m", "15m", "30m", "60m", "90m",
     "1d", "1wk", "1mo", "3mo"
-]
-
-FOREX_TICKERS = [
-    "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", 
-    "USDCAD=X", "USDCHF=X", "NZDUSD=X",
-    "EURGBP=X", "EURJPY=X", "EURCHF=X", "EURCAD=X", 
-    "EURAUD=X", "EURNZD=X",
-    "GBPJPY=X", "GBPCHF=X", "GBPCAD=X", "GBPAUD=X", "GBPNZD=X",
-    "AUDJPY=X", "CADJPY=X", "CHFJPY=X", "NZDJPY=X",
-    "AUDCAD=X", "AUDCHF=X", "AUDNZD=X", "CADCHF=X", 
-    "NZDCAD=X", "NZDCHF=X",
 ]
 
 COMMODITY_TICKERS = ["GC=F", "SI=F"]
@@ -103,12 +93,17 @@ def get_yf_interval(itv: str) -> str:
 
 
 def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
+    if tkr in FOREX_TICKERS:
+        return fetch_forex_data(tkr, itv, requested_period)
+
     yf_interval = get_yf_interval(itv)
     idx = PERIOD_LADDER.index(requested_period) if requested_period in PERIOD_LADDER else 0
     for cand in [PERIOD_LADDER[i] for i in range(idx, -1, -1)]:
         try:
-            df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False)
-        except Exception:
+            df = yf.download(tkr, interval=yf_interval, period=cand, progress=False,
+                              auto_adjust=False, threads=False)
+        except Exception as exc:
+            logger.warning("Yahoo fetch failed %s %s: %s", tkr, itv, exc)
             continue
         if df.empty:
             continue
@@ -117,6 +112,7 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
         df = df[["Open", "High", "Low", "Close"]].dropna()
         if not df.empty:
             return df
+    logger.error("DATA MISSING: %s %s", tkr, itv)
     return pd.DataFrame()
 
 
@@ -256,8 +252,6 @@ def main():
                 if not should_send_alert(key, sent_keys, last_alert_time):
                     continue
                     
-                sent_keys.add(key)
-                last_alert_time[key] = time.time()
                 txt = build_alert_text(tkr, itv, e, df, RR_TARGET)
                 chart_bytes = render_zone_chart(df, e, tkr, itv)
                 pending_alerts.append({
@@ -273,7 +267,12 @@ def main():
             else:
                 ok, msg = send_telegram_message(BOT_TOKEN, CHAT_ID, alert["text"])
             if ok:
+                sent_keys.add(alert["key"])
+                last_alert_time[alert["key"]] = time.time()
                 new_count += 1
+            else:
+                logger.error("Telegram send failed for %s %s: %s",
+                             alert["ticker"], alert["interval"], msg)
         if i + BATCH_SIZE < len(pending_alerts):
             time.sleep(3)
 
