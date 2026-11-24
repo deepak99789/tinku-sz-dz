@@ -30,15 +30,24 @@ git push
 1. GitHub repo kholo → **Settings** → **Secrets and variables** → **Actions**
 2. **New repository secret** par click karo, 2 secrets banao:
    - `TELEGRAM_BOT_TOKEN` → apna Bot Token
-   - `TELEGRAM_CHAT_ID` → apna Chat ID
+   - `TELEGRAM_CHAT_ID_FOREX` → Forex alerts ka Chat ID
 
 (Same token/chat-id jo aap Streamlit app ki sidebar me daalte ho.)
 
-### 3. Apni ticker/timeframe list set karo
+### 3. Free Multi-Source Forex data (recommended)
+
+Forex scanner exactly 28 standard pairs scan karta hai. Yahoo Finance primary source hai. Fallback sources activate karne ke liye GitHub repo → **Settings → Secrets and variables → Actions** me ye optional secrets add karo:
+
+- `TWELVEDATA_API_KEY` → Twelve Data ka free API key
+- `ALPHAVANTAGE_API_KEY` → Alpha Vantage ka free API key
+
+Dono keys optional hain; keys na hone par Yahoo Finance hi use hoga. Free API plans ki request limits hoti hain, isliye har pair/timeframe par fallback data guaranteed nahi hai.
+
+### 4. Apni ticker/timeframe list set karo
 `alert_bot.py` file me upar **CONFIG** section me `TICKERS` aur `INTERVALS`
 list edit kar do - jitne chaho utne stocks daal sakte ho.
 
-### 4. Workflow enable karo
+### 5. Workflow enable karo
 GitHub repo → **Actions** tab → agar pehli baar hai to "I understand my
 workflows, go ahead and enable them" par click karo. Bas - ab ye har 15
 minute me khud chalega (`.github/workflows/scan.yml` me cron schedule hai,
