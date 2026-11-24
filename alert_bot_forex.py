@@ -23,7 +23,7 @@ from forex_data import FOREX_TICKERS, fetch_forex_data
 # ==========================================================================
 
 INTERVALS = [
-    "5m", "15m", "30m", "60m", "90m",
+    "15m", "30m", "60m", "90m",
     "1d", "1wk", "1mo", "3mo"
 ]
 
