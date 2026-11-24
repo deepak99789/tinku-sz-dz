@@ -145,7 +145,11 @@ def fetch_ohlcv(ticker: str, timeframe: str, period: str = "1mo",
     if not yahoo.empty:
         frames.append(yahoo)
     if not frames:
-        td = _fetch_twelve_data(ticker, timeframe)
+        # The timeframe builder aggregates from 5-minute source candles.
+        # Requesting native 15m/30m/1h candles here would make its completeness
+        # check treat each larger candle as one 5m candle and discard valid data.
+        td_timeframe = "5m" if custom_intraday else timeframe
+        td = _fetch_twelve_data(ticker, td_timeframe)
         if not td.empty:
             frames.append(td)
     for frame in frames:
