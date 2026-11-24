@@ -24,6 +24,7 @@ except ImportError:
 from pattern_engine import run_full_pipeline
 from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
+from forex_data import FOREX_TICKERS, fetch_forex_data
 
 st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 
@@ -237,17 +238,8 @@ MARKET_PRESETS = {
         ],
     },
     "💱 Forex": {
-        "suffix_hint": "e.g. EURUSD=X, GBPJPY=X",
-        "tickers": [
-            "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", 
-            "USDCAD=X", "USDCHF=X", "NZDUSD=X",
-            "EURGBP=X", "EURJPY=X", "EURCHF=X", "EURCAD=X", 
-            "EURAUD=X", "EURNZD=X",
-            "GBPJPY=X", "GBPCHF=X", "GBPCAD=X", "GBPAUD=X", "GBPNZD=X",
-            "AUDJPY=X", "CADJPY=X", "CHFJPY=X", "NZDJPY=X",
-            "AUDCAD=X", "AUDCHF=X", "AUDNZD=X", "CADCHF=X", 
-            "NZDCAD=X", "NZDCHF=X",
-        ],
+        "suffix_hint": "28 standard pairs; free multi-source data",
+        "tickers": FOREX_TICKERS,
     },
     "🥇 Commodity": {
         "suffix_hint": "e.g. GC=F (Gold), CL=F (Crude)",
@@ -520,9 +512,13 @@ def play_beep():
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
+    if tkr in FOREX_TICKERS:
+        return fetch_forex_data(tkr, itv, per)
+
     yf_itv = YF_INTERVAL_MAP_APP.get(itv, itv)
     try:
-        df = yf.download(tkr, interval=yf_itv, period=per, progress=False, auto_adjust=False)
+        df = yf.download(tkr, interval=yf_itv, period=per, progress=False,
+                         auto_adjust=False, threads=False)
     except Exception:
         return pd.DataFrame()
     if df.empty:
