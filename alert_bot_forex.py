@@ -226,7 +226,13 @@ def main():
                                            rr_target=RR_TARGET, pre_entry_mult=PRE_ENTRY_MULT,
                                            base_count_filter=BASE_COUNT_FILTER,
                                            max_base_count=MAX_BASE_COUNT,
-                                           proximal_method=PROXIMAL_METHOD)
+                                           proximal_method=PROXIMAL_METHOD,
+                                           base_range_max_legin=True,
+                                           legin_to_base_range_ratio=1.0,
+                                           legout_to_legin_range_ratio=1.0,
+                                           legin_body_min=60.0,
+                                           base_body_max=55.0,
+                                           legout_body_min=65.0)
             except Exception as e:
                 logger.error(f"❌ Error: {e}")
                 continue
