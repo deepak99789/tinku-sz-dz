@@ -16,6 +16,19 @@ import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
+
+def _get_secret(name: str) -> str:
+    value = os.getenv(name, "").strip()
+    if value:
+        return value
+    # Streamlit Community Cloud secrets are not automatically exported as env vars.
+    try:
+        import streamlit as st
+        return str(st.secrets.get(name, "")).strip()
+    except Exception:
+        return ""
+
+
 # Exactly 28 standard pairs: 7 USD majors + 21 crosses among the 8 major currencies.
 FOREX_PAIRS = [
     "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD",
@@ -66,7 +79,7 @@ def _yahoo(pair: str, interval: str, period: str) -> pd.DataFrame:
 
 
 def _twelve_data(pair: str, interval: str) -> pd.DataFrame:
-    api_key = os.getenv("TWELVEDATA_API_KEY", "").strip()
+    api_key = _get_secret("TWELVEDATA_API_KEY")
     td_interval = TD_INTERVALS.get(interval)
     if not api_key or not td_interval:
         return pd.DataFrame()
@@ -99,7 +112,7 @@ def _twelve_data(pair: str, interval: str) -> pd.DataFrame:
 
 
 def _alpha_vantage(pair: str, interval: str) -> pd.DataFrame:
-    api_key = os.getenv("ALPHAVANTAGE_API_KEY", "").strip()
+    api_key = _get_secret("ALPHAVANTAGE_API_KEY")
     if not api_key:
         return pd.DataFrame()
     if interval in AV_INTRADAY:
