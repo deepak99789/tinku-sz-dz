@@ -80,8 +80,9 @@ PERIOD_LADDER = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 RUN_CACHE = set()
 
 def is_duplicate_in_run(tkr: str, itv: str, event: dict) -> bool:
+    # Keep full Forex price precision; integer rounding merges distinct FX zones.
     z = event["zone"]
-    key = f"{tkr}|{itv}|{int(z.proximal)}"
+    key = f"{tkr}|{itv}|{event['type']}|{float(z.proximal):.8f}"
     if key in RUN_CACHE:
         return True
     RUN_CACHE.add(key)
@@ -243,11 +244,12 @@ def main():
                     logger.info(f"  ⏭️ Skipping duplicate in run: {tkr} {itv} {e['type']}")
                     continue
                 
-                key = alert_key(tkr, itv, e)
+                # Preserve Forex quote precision so separate zones/pairs don't collide.
+                key = f"{tkr}|{itv}|{e['type']}|{float(e['zone'].proximal):.8f}"
                 
-                if is_duplicate_with_tolerance(tkr, itv, e, sent_keys):
-                    logger.info(f"  ⏭️ Skipping duplicate (state): {key}")
-                    continue
+                # Exact high-precision keys are checked by should_send_alert().
+                # Do not apply the old integer-price tolerance check to Forex:
+                # e.g. EURUSD 1.08 and 1.09 both became integer 1 and collided.
                 
                 if not should_send_alert(key, sent_keys, last_alert_time):
                     continue
