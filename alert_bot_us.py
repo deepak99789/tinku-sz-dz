@@ -22,7 +22,7 @@ from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_I
 # ==========================================================================
 
 INTERVALS = [
-    "5m", "15m", "30m", "60m", "90m",
+    "15m", "30m", "60m", "90m",
     "1d", "5d", "1wk", "1mo", "3mo"
 ]
 
