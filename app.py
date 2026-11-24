@@ -5,7 +5,6 @@ app.py - Demand & Supply Dashboard (Streamlit port)
 import streamlit as st
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import plotly.graph_objects as go
 import io
 import wave
@@ -21,6 +20,8 @@ try:
 except ImportError:
     AUTOREFRESH_AVAILABLE = False
 
+from data_sources import fetch_ohlcv
+from timeframe_builder import SUPPORTED_TIMEFRAMES
 from pattern_engine import run_full_pipeline
 from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
@@ -31,10 +32,7 @@ st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 # 🔥 SUPPORTED YFINANCE TIMEFRAMES (REAL DATA)
 # ==========================================================================
 
-INTERVAL_OPTIONS = [
-    "5m", "15m", "30m", "60m", "90m",
-    "1d", "5d", "1wk", "1mo", "3mo"
-]
+INTERVAL_OPTIONS = SUPPORTED_TIMEFRAMES
 
 PERIOD_OPTIONS = ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
@@ -520,17 +518,12 @@ def play_beep():
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
-    yf_itv = YF_INTERVAL_MAP_APP.get(itv, itv)
+    """Fetch normalized OHLCV through the shared free_multi provider layer."""
     try:
-        df = yf.download(tkr, interval=yf_itv, period=per, progress=False, auto_adjust=False)
-    except Exception:
+        return fetch_ohlcv(tkr, itv, period=per)
+    except Exception as exc:
+        st.warning(f"Data fetch failed for {tkr} [{itv}]: {exc}")
         return pd.DataFrame()
-    if df.empty:
-        return df
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    df = df[["Open", "High", "Low", "Close"]].dropna()
-    return df
 
 
 def fetch_data_smart(tkr: str, itv: str, requested_period: str):
