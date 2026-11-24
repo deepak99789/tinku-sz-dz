@@ -17,9 +17,9 @@ ALERT_ICONS = {
 
 
 def alert_key(tkr: str, itv: str, event: dict) -> str:
-    """🔥 FINAL: Sirf Symbol + Timeframe + Integer Proximal"""
+    """Stable high-precision key; avoid merging distinct low-priced Forex zones."""
     z = event["zone"]
-    return f"{tkr}|{itv}|{int(z.proximal)}"
+    return f"{tkr}|{itv}|{event['type']}|{float(z.proximal):.8f}"
 
 
 def build_alert_text(tkr: str, itv: str, event: dict, df, rr_target: float) -> str:
