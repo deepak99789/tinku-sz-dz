@@ -104,6 +104,8 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
         if frame is not None and not frame.empty:
             return frame
     return pd.DataFrame()
+
+
 def load_state() -> set:
     if os.path.exists(STATE_FILE):
         try:
