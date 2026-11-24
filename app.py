@@ -384,20 +384,40 @@ with settings_box:
     with row2c_c2:
         proximal_method = st.selectbox("Zone Boundary", ["Wick to Wick", "Wick to Body"], index=0)
 
-    is_india_or_us = market.startswith(("🇮🇳", "🇺🇸"))
-    st.markdown("**📏 Candle Range Ratio Rules (Indian + US only)**")
+    st.markdown("**📏 TradingView-Matched Candle Filters (All Markets)**")
+    body_c1, body_c2, body_c3 = st.columns(3)
+    with body_c1:
+        legin_body_min = st.number_input(
+            "Leg-in Body / Range Minimum %", min_value=0.0, max_value=100.0,
+            value=60.0, step=1.0
+        )
+    with body_c2:
+        base_body_max = st.number_input(
+            "Base Body / Range Maximum %", min_value=0.0, max_value=100.0,
+            value=55.0, step=1.0
+        )
+    with body_c3:
+        legout_body_min = st.number_input(
+            "Leg-out Body / Range Minimum %", min_value=0.0, max_value=100.0,
+            value=65.0, step=1.0
+        )
+
+    legin_base_range_filter = st.checkbox(
+        "Enable Leg-in / Base Range Filter", value=True,
+        help="ON: Leg-in candle range must be at least the selected multiplier times EACH individual base candle range."
+    )
     ratio_c1, ratio_c2 = st.columns(2)
     with ratio_c1:
         legin_to_base_range_ratio = st.number_input(
-            "Leg-in Range / Base Range (x)", min_value=1.0, max_value=5.0,
-            value=1.0, step=0.1, disabled=not is_india_or_us,
-            help="1.7 ka matlab: Leg-in candle ka range har Base candle se kam-se-kam 1.7x hona chahiye."
+            "Leg-in Range Multiplier", min_value=1.0, max_value=5.0,
+            value=1.0, step=0.1, disabled=not legin_base_range_filter,
+            help="1.0 means Leg-in range must be >= each individual Base candle range."
         )
     with ratio_c2:
         legout_to_legin_range_ratio = st.number_input(
-            "Leg-out Range / Leg-in Range (x)", min_value=1.0, max_value=5.0,
-            value=1.0, step=0.1, disabled=not is_india_or_us,
-            help="1.5 ka matlab: 1 leg-out ka range, ya 2 leg-out candles ke combined range ko, Leg-in range se 1.5x se zyada hona chahiye."
+            "Leg-out Range / Leg-in Range Multiplier", min_value=1.0, max_value=5.0,
+            value=1.0, step=0.1,
+            help="1-legout range OR combined 2-legout range must be greater than this multiple of Leg-in range."
         )
 
     row2b_c1, row2b_c2 = st.columns([1.6, 3])
@@ -588,9 +608,12 @@ if trigger_scan:
                 validation_checklist=validation_checklist_on,
                 proximal_method=proximal_method,
                 max_base_count=max_base_count,
-                base_range_max_legin=is_india_or_us,
-                legin_to_base_range_ratio=legin_to_base_range_ratio if is_india_or_us else 1.0,
-                legout_to_legin_range_ratio=legout_to_legin_range_ratio if is_india_or_us else 1.0,
+                base_range_max_legin=legin_base_range_filter,
+                legin_to_base_range_ratio=legin_to_base_range_ratio,
+                legout_to_legin_range_ratio=legout_to_legin_range_ratio,
+                legin_body_min=legin_body_min,
+                base_body_max=base_body_max,
+                legout_body_min=legout_body_min,
             )
             combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
 
