@@ -84,10 +84,10 @@ def detect_patterns(
     base_count_filter: str = "All",
     max_base_count: int = 3,
     proximal_method: str = "Wick to Wick",
-    legin_body_min: float = 65.0,
-    base_body_max: float = 50.0,
-    legout_body_min: float = 70.0,
-    base_range_max_legin: bool = False,
+    legin_body_min: float = 60.0,
+    base_body_max: float = 55.0,
+    legout_body_min: float = 65.0,
+    base_range_max_legin: bool = True,
     legin_to_base_range_ratio: float = 1.0,
     legout_to_legin_range_ratio: float = 1.0,
 ) -> pd.DataFrame:
@@ -382,17 +382,17 @@ def track_zones(
         if supply_signal:
             z = _zone_from_supply_row(d, i, atr_buffer)
             
-            # 🔥 Check duplicate with 0.5 tolerance
-            is_dup = False
-            for key, (p, d_val) in seen_zones.items():
-                if abs(p - z.proximal) < 0.5 and abs(d_val - z.distal) < 0.5:
-                    is_dup = True
-                    break
-            
-            if is_dup:
+            # Exact-price duplicate check. A fixed 0.5 tolerance is far too
+            # large for Forex quotes (e.g. EURUSD around 1.08) and hides
+            # distinct zones. Only suppress the same pattern and same boundaries.
+            duplicate_key = (
+                z.pattern_name,
+                round(float(z.proximal), 8),
+                round(float(z.distal), 8),
+            )
+            if duplicate_key in seen_zones:
                 continue
-                
-            seen_zones[f"{z.pattern_name}|{round(z.proximal, 2)}"] = (z.proximal, z.distal)
+            seen_zones[duplicate_key] = (z.proximal, z.distal)
             
             risk = z.distal - z.proximal
             z.target = z.proximal - risk * rr_target
@@ -408,17 +408,17 @@ def track_zones(
         if demand_signal:
             z = _zone_from_demand_row(d, i, atr_buffer)
             
-            # 🔥 Check duplicate with 0.5 tolerance
-            is_dup = False
-            for key, (p, d_val) in seen_zones.items():
-                if abs(p - z.proximal) < 0.5 and abs(d_val - z.distal) < 0.5:
-                    is_dup = True
-                    break
-            
-            if is_dup:
+            # Exact-price duplicate check. A fixed 0.5 tolerance is far too
+            # large for Forex quotes (e.g. EURUSD around 1.08) and hides
+            # distinct zones. Only suppress the same pattern and same boundaries.
+            duplicate_key = (
+                z.pattern_name,
+                round(float(z.proximal), 8),
+                round(float(z.distal), 8),
+            )
+            if duplicate_key in seen_zones:
                 continue
-                
-            seen_zones[f"{z.pattern_name}|{round(z.proximal, 2)}"] = (z.proximal, z.distal)
+            seen_zones[duplicate_key] = (z.proximal, z.distal)
             
             risk = z.proximal - z.distal
             z.target = z.proximal + risk * rr_target
@@ -500,15 +500,21 @@ def run_full_pipeline(
     validation_checklist: bool = False,
     proximal_method: str = "Wick to Wick",
     max_base_count: int = 3,
-    base_range_max_legin: bool = False,
+    base_range_max_legin: bool = True,
     legin_to_base_range_ratio: float = 1.0,
     legout_to_legin_range_ratio: float = 1.0,
+    legin_body_min: float = 60.0,
+    base_body_max: float = 55.0,
+    legout_body_min: float = 65.0,
 ) -> DetectionResult:
     d = detect_patterns(
         df, base_count_filter=base_count_filter, proximal_method=proximal_method,
         max_base_count=max_base_count, base_range_max_legin=base_range_max_legin,
         legin_to_base_range_ratio=legin_to_base_range_ratio,
         legout_to_legin_range_ratio=legout_to_legin_range_ratio,
+        legin_body_min=legin_body_min,
+        base_body_max=base_body_max,
+        legout_body_min=legout_body_min,
     )
     atr_series = wilder_atr(df, atr_length)
     result = track_zones(
