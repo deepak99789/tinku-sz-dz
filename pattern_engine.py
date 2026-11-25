@@ -91,6 +91,7 @@ def detect_patterns(
     legin_to_base_range_ratio: float = 1.0,
     legout_to_legin_range_ratio: float = 1.0,
     legout_must_respect_base_distal: bool = False,
+    legout_open_beyond_proximal_base_close: bool = False,
 ) -> pd.DataFrame:
     """
     Detect RBD/DBD/DBR/RBR patterns using closed OHLC candles.
@@ -225,6 +226,39 @@ def detect_patterns(
 
                 if not base_valid:
                     continue
+
+                # Optional Streamlit-only filter: use the base candle whose body
+                # is closest to the proximal boundary, then require the first
+                # leg-out candle to open beyond that candle's Close.
+                if legout_open_beyond_proximal_base_close:
+                    if proximal_method == "Wick to Body":
+                        proximal_reference = body_high if is_demand else body_low
+                    else:
+                        proximal_reference = base_high if is_demand else base_low
+
+                    closest_base_idx = None
+                    closest_body_distance = np.inf
+                    for j in range(first_base_idx, last_base_idx + 1):
+                        body_top = max(o[j], c[j])
+                        body_bottom = min(o[j], c[j])
+                        if proximal_reference > body_top:
+                            distance = proximal_reference - body_top
+                        elif proximal_reference < body_bottom:
+                            distance = body_bottom - proximal_reference
+                        else:
+                            distance = 0.0
+                        if distance < closest_body_distance:
+                            closest_body_distance = distance
+                            closest_base_idx = j
+
+                    if closest_base_idx is None:
+                        continue
+                    proximal_base_close = c[closest_base_idx]
+                    first_legout_open = o[first_legout_idx]
+                    if is_demand and not (first_legout_open > proximal_base_close):
+                        continue
+                    if (not is_demand) and not (first_legout_open < proximal_base_close):
+                        continue
 
                 # Optional engine switch; enabled as compulsory by India/US alert bots.
                 # The complete leg-out candle range (including wick) must not
@@ -519,6 +553,7 @@ def run_full_pipeline(
     base_body_max: float = 55.0,
     legout_body_min: float = 65.0,
     legout_must_respect_base_distal: bool = False,
+    legout_open_beyond_proximal_base_close: bool = False,
 ) -> DetectionResult:
     d = detect_patterns(
         df, base_count_filter=base_count_filter, proximal_method=proximal_method,
@@ -529,6 +564,7 @@ def run_full_pipeline(
         base_body_max=base_body_max,
         legout_body_min=legout_body_min,
         legout_must_respect_base_distal=legout_must_respect_base_distal,
+        legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
     )
     atr_series = wilder_atr(df, atr_length)
     result = track_zones(
