@@ -384,6 +384,15 @@ with settings_box:
     with row2c_c2:
         proximal_method = st.selectbox("Zone Boundary", ["Wick to Wick", "Wick to Body"], index=0)
 
+    legout_open_beyond_proximal_base_close = st.checkbox(
+        "Leg-out Open Beyond Proximal Base Candle Close", value=False,
+        help=(
+            "ON: Demand zone mein proximal ke sabse nazdeek body wali base candle ka Close, "
+            "leg-out Open se neeche hona chahiye. Supply zone mein leg-out Open us Close se neeche hona chahiye. "
+            "OFF: Existing zone detection unchanged."
+        ),
+    )
+
     st.markdown("**📏 TradingView-Matched Candle Filters (All Markets)**")
     body_c1, body_c2, body_c3 = st.columns(3)
     with body_c1:
@@ -614,6 +623,7 @@ if trigger_scan:
                 legin_body_min=legin_body_min,
                 base_body_max=base_body_max,
                 legout_body_min=legout_body_min,
+                legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
             )
             combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
 
