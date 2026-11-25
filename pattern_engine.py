@@ -90,6 +90,7 @@ def detect_patterns(
     base_range_max_legin: bool = True,
     legin_to_base_range_ratio: float = 1.0,
     legout_to_legin_range_ratio: float = 1.0,
+    legout_must_respect_base_distal: bool = False,
 ) -> pd.DataFrame:
     """
     Detect RBD/DBD/DBR/RBR patterns using closed OHLC candles.
@@ -224,6 +225,17 @@ def detect_patterns(
 
                 if not base_valid:
                     continue
+
+                # Optional engine switch; enabled as compulsory by India/US alert bots.
+                # The complete leg-out candle range (including wick) must not
+                # cross the distal edge of the base candles.
+                if legout_must_respect_base_distal:
+                    legout_lows = l[first_legout_idx:i + 1]
+                    legout_highs = h[first_legout_idx:i + 1]
+                    if is_demand and np.any(legout_lows < base_low):
+                        continue
+                    if (not is_demand) and np.any(legout_highs > base_high):
+                        continue
 
                 departure_valid = c[i] > base_high if is_demand else c[i] < base_low
                 if not departure_valid:
@@ -506,6 +518,7 @@ def run_full_pipeline(
     legin_body_min: float = 60.0,
     base_body_max: float = 55.0,
     legout_body_min: float = 65.0,
+    legout_must_respect_base_distal: bool = False,
 ) -> DetectionResult:
     d = detect_patterns(
         df, base_count_filter=base_count_filter, proximal_method=proximal_method,
@@ -515,6 +528,7 @@ def run_full_pipeline(
         legin_body_min=legin_body_min,
         base_body_max=base_body_max,
         legout_body_min=legout_body_min,
+        legout_must_respect_base_distal=legout_must_respect_base_distal,
     )
     atr_series = wilder_atr(df, atr_length)
     result = track_zones(
