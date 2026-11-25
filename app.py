@@ -510,6 +510,131 @@ def zone_display_status(z) -> str:
     return "FRESH" if not z.activated else "ACTIVE"
 
 
+# ==========================================================================
+# 🔎 SINGLE-ZONE POPUP CHART
+# ==========================================================================
+
+@st.dialog("Zone Chart Preview", width="large")
+def show_zone_popup(df: pd.DataFrame, z, ticker: str, interval: str, rr_target: float):
+    """Show one selected zone with surrounding candles and pattern components."""
+    if df.empty:
+        st.warning("Is zone ke liye chart data available nahi hai.")
+        return
+
+    chart_start = max(0, int(z.start_bar) - 50)
+    chart_end = min(len(df) - 1, max(int(z.end_bar), int(z.trigger_bar)) + 50)
+    chart_df = df.iloc[chart_start:chart_end + 1].copy()
+
+    legin_idx = int(z.start_bar)
+    base_start = legin_idx + 1
+    base_end = base_start + int(z.base_count) - 1
+    legout_start = base_end + 1
+    legout_end = int(z.trigger_bar)
+
+    zone_type = "SUPPLY" if z.is_supply else "DEMAND"
+    status = zone_display_status(z)
+    top = max(float(z.proximal), float(z.distal))
+    bottom = min(float(z.proximal), float(z.distal))
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Pattern", str(z.pattern_name))
+    m2.metric("Zone Type", zone_type)
+    m3.metric("Status", status)
+    m4.metric("Risk : Reward", f"1 : {rr_target:g}")
+
+    p1, p2, p3 = st.columns(3)
+    p1.metric("Proximal / Entry", f"{float(z.proximal):.6g}")
+    p2.metric("Distal / Stop Loss", f"{float(z.distal):.6g}")
+    p3.metric("Target", f"{float(z.target):.6g}")
+
+    fig = go.Figure()
+    fig.add_trace(go.Candlestick(
+        x=chart_df.index,
+        open=chart_df["Open"],
+        high=chart_df["High"],
+        low=chart_df["Low"],
+        close=chart_df["Close"],
+        name=ticker,
+        increasing_line_color="#26a69a",
+        decreasing_line_color="#ef5350",
+    ))
+
+    # Shade the complete zone from the base candles to the end of the preview.
+    zone_color = "rgba(255, 82, 82, 0.20)" if z.is_supply else "rgba(0, 200, 120, 0.20)"
+    zone_line = "#ff5252" if z.is_supply else "#00c878"
+    fig.add_shape(
+        type="rect",
+        x0=df.index[base_start],
+        x1=chart_df.index[-1],
+        y0=bottom,
+        y1=top,
+        fillcolor=zone_color,
+        line=dict(color=zone_line, width=1.5),
+        layer="below",
+    )
+
+    # Price levels: proximal is entry; distal is stop-loss boundary.
+    fig.add_hline(
+        y=float(z.proximal), line_dash="dash", line_color="#00d4ff",
+        annotation_text="PROXIMAL / ENTRY", annotation_position="top left",
+    )
+    fig.add_hline(
+        y=float(z.distal), line_dash="dot", line_color="#ff9800",
+        annotation_text="DISTAL / STOP LOSS", annotation_position="bottom left",
+    )
+    fig.add_hline(
+        y=float(z.target), line_dash="dash", line_color="#7cfc00",
+        annotation_text=f"TARGET ({rr_target:g}R)", annotation_position="top right",
+    )
+
+    # Mark Leg-in, Base and Leg-out candles separately.
+    def add_pattern_markers(first_idx, last_idx, label, color, symbol):
+        first_idx = max(chart_start, int(first_idx))
+        last_idx = min(chart_end, int(last_idx))
+        if first_idx > last_idx:
+            return
+        ids = list(range(first_idx, last_idx + 1))
+        marker_y = [
+            float(df["High"].iloc[k]) * 1.002 if not z.is_supply
+            else float(df["Low"].iloc[k]) * 0.998
+            for k in ids
+        ]
+        fig.add_trace(go.Scatter(
+            x=[df.index[k] for k in ids],
+            y=marker_y,
+            mode="markers+text",
+            name=label,
+            text=[label] + [""] * (len(ids) - 1),
+            textposition="top center" if not z.is_supply else "bottom center",
+            marker=dict(color=color, size=10, symbol=symbol, line=dict(color="white", width=1)),
+            hovertemplate=label + "<br>%{x}<br>Price: %{y:.6g}<extra></extra>",
+        ))
+
+    add_pattern_markers(legin_idx, legin_idx, "LEG-IN", "#ffb300", "circle")
+    add_pattern_markers(base_start, base_end, "BASE", "#ab47bc", "square")
+    add_pattern_markers(legout_start, legout_end, "LEG-OUT", "#29b6f6", "diamond")
+
+    fig.update_layout(
+        title=f"{ticker} · {interval} · {z.pattern_name} {zone_type} · {status}",
+        height=720,
+        template="plotly_dark",
+        xaxis_rangeslider_visible=False,
+        margin=dict(l=15, r=20, t=55, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        hovermode="x unified",
+    )
+    fig.update_xaxes(showgrid=True, gridcolor="rgba(128,128,128,0.18)")
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(128,128,128,0.18)")
+    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+
+    st.caption(
+        f"Chart window: 50 candles before the pattern and up to 50 candles after it. "
+        f"Leg-in: {df.index[legin_idx]} · "
+        f"Base candles: {z.base_count} · "
+        f"Leg-out candles: {z.legout_count}"
+    )
+
+
 @st.cache_data(show_spinner=False)
 def get_beep_b64(freq: int = 880, duration: float = 0.3, volume: float = 0.5, rate: int = 44100) -> str:
     n_samples = int(rate * duration)
@@ -859,12 +984,14 @@ if "combo_results" in st.session_state:
         for (tkr, itv), data in combo_results.items():
             r = data["result"]
             d = data["df"]
-            for z in r.all_zones:
+            for zone_index, z in enumerate(r.all_zones):
                 if z.status not in allowed_status:
                     continue
                 if legout_count_filter != "All" and z.legout_count != int(legout_count_filter):
                     continue
                 rows.append({
+                    "_combo_key": (tkr, itv),
+                    "_zone_index": zone_index,
                     "Ticker": tkr,
                     "Interval": itv,
                     "Pattern": z.pattern_name,
@@ -893,7 +1020,36 @@ if "combo_results" in st.session_state:
                 table_df = zone_df[zone_df["Start"].dt.date == picked_date]
                 st.caption(f"🗓️ Sirf **{picked_date}** ka result — **{len(table_df)}** zone(s) mile.")
 
-            st.dataframe(table_df, use_container_width=True, hide_index=True)
+            # Click one result row to open its chart in a popup.
+            visible_columns = [
+                "Ticker", "Interval", "Pattern", "Type", "Base Count",
+                "Legout Count", "Start", "Proximal", "Distal", "Target", "Status",
+            ]
+            table_event = st.dataframe(
+                table_df[visible_columns],
+                use_container_width=True,
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="single-row",
+                key="zone_results_table",
+            )
+
+            selected_rows = table_event.selection.rows
+            if selected_rows:
+                selected_record = table_df.iloc[int(selected_rows[0])]
+                selected_combo_key = selected_record["_combo_key"]
+                selected_zone_index = int(selected_record["_zone_index"])
+                selected_data = combo_results[selected_combo_key]
+                selected_zone = selected_data["result"].all_zones[selected_zone_index]
+                show_zone_popup(
+                    selected_data["df"],
+                    selected_zone,
+                    selected_combo_key[0],
+                    selected_combo_key[1],
+                    float(st.session_state.get("rr_target", 3.0)),
+                )
+
+            st.caption("Kisi bhi result row par click karein — us zone ka detailed chart popup mein khulega.")
 
             # ======================================================
             # 📆 CALENDAR SUMMARY — konsi date ko kitne zone (Fresh/
