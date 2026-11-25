@@ -1020,36 +1020,49 @@ if "combo_results" in st.session_state:
                 table_df = zone_df[zone_df["Start"].dt.date == picked_date]
                 st.caption(f"🗓️ Sirf **{picked_date}** ka result — **{len(table_df)}** zone(s) mile.")
 
-            # Click one result row to open its chart in a popup.
+            # Click the TICKER button (for example GBPAUD=X) to open that zone's popup chart.
             visible_columns = [
                 "Ticker", "Interval", "Pattern", "Type", "Base Count",
                 "Legout Count", "Start", "Proximal", "Distal", "Target", "Status",
             ]
-            table_event = st.dataframe(
-                table_df[visible_columns],
-                use_container_width=True,
-                hide_index=True,
-                on_select="rerun",
-                selection_mode="single-row",
-                key="zone_results_table",
-            )
+            header_cols = st.columns([1.15, 0.55, 0.55, 0.55, 0.45, 0.55, 1.25, 0.75, 0.75, 0.75, 0.65])
+            for col, label in zip(header_cols, visible_columns):
+                col.markdown(f"**{label}**")
 
-            selected_rows = table_event.selection.rows
-            if selected_rows:
-                selected_record = table_df.iloc[int(selected_rows[0])]
-                selected_combo_key = selected_record["_combo_key"]
-                selected_zone_index = int(selected_record["_zone_index"])
-                selected_data = combo_results[selected_combo_key]
-                selected_zone = selected_data["result"].all_zones[selected_zone_index]
-                show_zone_popup(
-                    selected_data["df"],
-                    selected_zone,
-                    selected_combo_key[0],
-                    selected_combo_key[1],
-                    float(st.session_state.get("rr_target", 3.0)),
+            for display_row, (_, record) in enumerate(table_df.iterrows()):
+                row_cols = st.columns([1.15, 0.55, 0.55, 0.55, 0.45, 0.55, 1.25, 0.75, 0.75, 0.75, 0.65])
+                selected_combo_key = record["_combo_key"]
+                selected_zone_index = int(record["_zone_index"])
+                selected_ticker = str(record["Ticker"])
+                selected_interval = str(record["Interval"])
+
+                chart_clicked = row_cols[0].button(
+                    f"📈 {selected_ticker}",
+                    key=f"zone_chart_{selected_ticker}_{selected_interval}_{selected_zone_index}_{display_row}",
+                    help="Click to open this zone's chart popup",
+                    use_container_width=True,
                 )
 
-            st.caption("Kisi bhi result row par click karein — us zone ka detailed chart popup mein khulega.")
+                for col_idx, column_name in enumerate(visible_columns[1:], start=1):
+                    value = record[column_name]
+                    if column_name == "Start":
+                        value = pd.Timestamp(value).strftime("%Y-%m-%d %H:%M") if pd.notna(value) else "-"
+                    elif column_name in ("Proximal", "Distal", "Target"):
+                        value = f"{float(value):.6g}"
+                    row_cols[col_idx].write(str(value))
+
+                if chart_clicked:
+                    selected_data = combo_results[selected_combo_key]
+                    selected_zone = selected_data["result"].all_zones[selected_zone_index]
+                    show_zone_popup(
+                        selected_data["df"],
+                        selected_zone,
+                        selected_combo_key[0],
+                        selected_combo_key[1],
+                        float(st.session_state.get("rr_target", 3.0)),
+                    )
+
+            st.caption("Chart popup kholne ke liye kisi bhi row mein ticker button (jaise GBPAUD=X) par click karein.")
 
             # ======================================================
             # 📆 CALENDAR SUMMARY — konsi date ko kitne zone (Fresh/
