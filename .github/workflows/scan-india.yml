@@ -28,7 +28,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install pandas numpy yfinance requests matplotlib reportlab exchange-calendars
+        run: pip install pandas numpy yfinance requests matplotlib reportlab pandas-market-calendars
 
       - name: 🔥 Pull latest state BEFORE scanning
         run: |
