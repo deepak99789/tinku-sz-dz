@@ -266,7 +266,7 @@ def send_report(market, period, zones, events, sent, chat_id=None, title=None):
     cfg = MARKETS.get(market)
     if not token or (not cfg and market != "combined"):
         raise RuntimeError("TELEGRAM_BOT_TOKEN or market configuration missing")
-    chat_id = chat_id or os.getenv(cfg["chat_env"], "")
+    chat_id = chat_id or (os.getenv(cfg["chat_env"], "") if cfg else "")
     if market == "combined" and not chat_id:
         chat_id = os.getenv("TELEGRAM_CHAT_ID_COMBINED") or os.getenv("TELEGRAM_CHAT_ID_INDIA", "")
     if not chat_id:
