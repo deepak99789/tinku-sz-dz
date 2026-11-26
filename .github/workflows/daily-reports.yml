@@ -1,0 +1,61 @@
+name: Daily Market Reports
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-market-reports
+  cancel-in-progress: false
+
+jobs:
+  reports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install reporting dependencies
+        run: pip install pandas requests reportlab exchange-calendars
+
+      - name: Generate and send due reports
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID_INDIA: ${{ secrets.TELEGRAM_CHAT_ID_INDIA }}
+          TELEGRAM_CHAT_ID_US: ${{ secrets.TELEGRAM_CHAT_ID_US }}
+          TELEGRAM_CHAT_ID_FOREX: ${{ secrets.TELEGRAM_CHAT_ID_FOREX }}
+          TELEGRAM_CHAT_ID_COMBINED: ${{ secrets.TELEGRAM_CHAT_ID_COMBINED }}
+        run: python daily_reporting.py
+
+      - name: Persist report delivery state
+        run: |
+          git config user.name "zone-report-bot"
+          git config user.email "actions@github.com"
+          git add report_state.json
+          if git diff --cached --quiet; then
+            echo "No new report delivery state."
+            exit 0
+          fi
+          git commit -m "📊 Persist daily report delivery state [skip ci]"
+          for i in {1..5}; do
+            if git push origin main; then
+              echo "Report state pushed."
+              exit 0
+            fi
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort; exit 1; }
+            sleep $((RANDOM % 5 + 1))
+          done
+          echo "Unable to push report state after retries."
+          exit 1
