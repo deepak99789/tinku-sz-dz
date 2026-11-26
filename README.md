@@ -70,6 +70,10 @@ khula ho. Agar PC/laptop band hone par bhi alerts chahiye, `alert_bot.py`
 use karo - GitHub Actions par chalta hai, aapka PC ON hona zaroori nahi.
 Poori setup guide: [SETUP_24x7_ALERTS.md](SETUP_24x7_ALERTS.md)
 
+## Daily market reports (India / US / Forex / Combined)
+
+See [DAILY_REPORTS_SETUP.md](DAILY_REPORTS_SETUP.md) for Telegram PDF + CSV daily reports, market-close scheduling, required secrets, and persistent report ledgers.
+
 ## Forex data source (Free Multi-Source)
 
 The Dashboard and `alert_bot_forex.py` share the same `forex_data.py` module and the same 28-pair list. Data-source order:
