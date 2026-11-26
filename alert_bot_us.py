@@ -238,7 +238,7 @@ def main():
                 chart_bytes = render_zone_chart(df, e, tkr, itv)
                 pending_alerts.append({
                     "ticker": tkr, "interval": itv, "type": e["type"],
-                    "text": txt, "chart_bytes": chart_bytes, "key": key
+                    "text": txt, "chart_bytes": chart_bytes, "key": key, "event": e, "df": df
                 })
 
     for i in range(0, len(pending_alerts), BATCH_SIZE):
