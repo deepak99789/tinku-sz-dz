@@ -29,6 +29,11 @@ jobs:
       - name: Install reporting dependencies
         run: pip install pandas requests reportlab pandas-market-calendars
 
+      - name: Validate reporting modules and exchange calendars
+        run: |
+          python -m py_compile daily_reporting.py alert_bot_india.py alert_bot_us.py alert_bot_forex.py
+          python -c "import pandas_market_calendars as m; m.get_calendar('XNSE'); m.get_calendar('NYSE')"
+
       - name: Generate and send due reports
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
