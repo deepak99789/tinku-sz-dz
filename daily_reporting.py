@@ -10,6 +10,7 @@ import hashlib
 import io
 import json
 import logging
+import time
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -248,15 +249,75 @@ def _pdf_bytes(title, period, zones, summary):
     return buf.getvalue()
 
 
-def _send_document(token, chat_id, payload, filename, caption):
+def _send_document(token, chat_id, payload, filename, caption, max_attempts=3):
+    """Upload one Telegram document, retrying transient network/server failures."""
     url = f"https://api.telegram.org/bot{token}/sendDocument"
-    response = requests.post(url, data={"chat_id": chat_id, "caption": caption[:1024]},
-                             files={"document": (filename, payload)}, timeout=60)
-    response.raise_for_status()
-    body = response.json()
-    if not body.get("ok"):
-        raise RuntimeError(f"Telegram document send failed: {body}")
-    return True
+    last_error = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = requests.post(
+                url,
+                data={"chat_id": chat_id, "caption": caption[:1024]},
+                files={"document": (filename, payload)},
+                timeout=(15, 90),
+            )
+
+            # Telegram rate limits are retryable; honor its suggested wait time.
+            if response.status_code == 429:
+                try:
+                    body = response.json()
+                except ValueError:
+                    body = {}
+                retry_after = body.get("parameters", {}).get("retry_after", 2)
+                last_error = RuntimeError(f"Telegram rate limited the upload (429): {body}")
+                if attempt < max_attempts:
+                    wait_seconds = max(1, min(int(retry_after), 30))
+                    LOG.warning(
+                        "Telegram rate limit for %s; attempt %s/%s, waiting %ss",
+                        filename, attempt, max_attempts, wait_seconds,
+                    )
+                    time.sleep(wait_seconds)
+                    continue
+                raise last_error
+
+            # Retry server-side failures; ordinary 4xx errors usually need
+            # a configuration/payload correction and should fail immediately.
+            if response.status_code >= 500:
+                last_error = requests.HTTPError(
+                    f"Telegram server error {response.status_code}: {response.text[:500]}",
+                    response=response,
+                )
+                if attempt < max_attempts:
+                    wait_seconds = 2 ** attempt
+                    LOG.warning(
+                        "Telegram server error uploading %s; attempt %s/%s, retrying in %ss",
+                        filename, attempt, max_attempts, wait_seconds,
+                    )
+                    time.sleep(wait_seconds)
+                    continue
+                raise last_error
+
+            response.raise_for_status()
+            body = response.json()
+            if not body.get("ok"):
+                raise RuntimeError(f"Telegram document send failed: {body}")
+            LOG.info("Telegram document delivered: %s (attempt %s)", filename, attempt)
+            return True
+
+        except (requests.ConnectionError, requests.Timeout, requests.ChunkedEncodingError) as exc:
+            last_error = exc
+            if attempt >= max_attempts:
+                LOG.exception("Telegram upload failed after %s attempts: %s", max_attempts, filename)
+                raise
+            wait_seconds = 2 ** attempt
+            LOG.warning(
+                "Temporary Telegram connection failure for %s; attempt %s/%s, retrying in %ss: %s",
+                filename, attempt, max_attempts, wait_seconds, exc,
+            )
+            time.sleep(wait_seconds)
+
+    raise RuntimeError(f"Telegram upload failed for {filename}: {last_error}")
 
 
 def send_report(market, period, zones, events, sent, chat_id=None, title=None):
