@@ -162,7 +162,16 @@ def detect_patterns(
             if count not in allowed:
                 continue
 
-            for legout_count in (1, 2):
+            # Count the consecutive same-direction departure candles. The
+            # first candle after the base must pass the original Legout strength
+            # checks; every following candle only needs to match its direction.
+            same_direction_run = 0
+            k = i
+            while k >= 0 and np.isfinite([o[k], c[k], h[k], l[k]]).all() and (c[k] - o[k]) * direction > 0:
+                same_direction_run += 1
+                k -= 1
+
+            for legout_count in range(1, same_direction_run + 1):
                 first_legout_idx = i - legout_count + 1
                 last_base_idx = first_legout_idx - 1
                 first_base_idx = last_base_idx - count + 1
@@ -171,27 +180,16 @@ def detect_patterns(
                 if legin_idx < 0:
                     continue
 
-                # Every leg-out candle must be in the departure direction
-                # and pass the existing minimum body/range percentage filter.
-                legout_valid = True
-                combined_legout_range = 0.0
-                for k in range(first_legout_idx, i + 1):
-                    if not np.isfinite([o[k], c[k], h[k], l[k]]).all():
-                        legout_valid = False
-                        break
-                    if (c[k] - o[k]) * direction <= 0:
-                        legout_valid = False
-                        break
-                    if body_pct(k) < legout_body_min:
-                        legout_valid = False
-                        break
-                    candle_range = h[k] - l[k]
-                    if candle_range <= 0:
-                        legout_valid = False
-                        break
-                    combined_legout_range += candle_range
-
-                if not legout_valid:
+                # Only the first candle is strength-tested. Additional
+                # leg-out candles count solely when their colour/direction
+                # matches the first leg-out candle.
+                first_legout_valid = (
+                    np.isfinite([o[first_legout_idx], c[first_legout_idx], h[first_legout_idx], l[first_legout_idx]]).all()
+                    and (c[first_legout_idx] - o[first_legout_idx]) * direction > 0
+                    and body_pct(first_legout_idx) >= legout_body_min
+                    and (h[first_legout_idx] - l[first_legout_idx]) > 0
+                )
+                if not first_legout_valid:
                     continue
 
                 legin_range = h[legin_idx] - l[legin_idx]
@@ -201,8 +199,10 @@ def detect_patterns(
                 if legin_pct < legin_body_min:
                     continue
 
-                # Configurable leg-out versus leg-in range strength.
-                if combined_legout_range <= legin_range * max(float(legout_to_legin_range_ratio), 0.01):
+                # Preserve the original range-strength rule on the first
+                # Legout candle only; later same-colour candles add no filter.
+                first_legout_range = h[first_legout_idx] - l[first_legout_idx]
+                if first_legout_range <= legin_range * max(float(legout_to_legin_range_ratio), 0.01):
                     continue
 
                 base_valid = True
@@ -306,7 +306,7 @@ def detect_patterns(
             d.iat[i, d.columns.get_loc(pattern.lower() + "_2base")] = True
         elif count == 3:
             d.iat[i, d.columns.get_loc(pattern.lower() + "_3base")] = True
-        if legout_count == 2:
+        if legout_count > 1:
             d.iat[i, d.columns.get_loc(pattern.lower() + "_ext")] = True
 
     return d
