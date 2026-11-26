@@ -96,15 +96,15 @@ def detect_patterns(
     """
     Detect RBD/DBD/DBR/RBR patterns using closed OHLC candles.
 
-    Range-strength filter:
-      * 1 leg-out candle: its High-Low range must be > leg-in range.
-      * 2 leg-out candles: sum of both High-Low ranges must be > leg-in range.
+    Leg-out rules:
+      * The first candle immediately after the base must pass the existing
+        body-percentage and leg-in/leg-out range-strength filters.
+      * Every following consecutive candle counts as leg-out when its colour
+        matches the first leg-out candle; no further body/range filter applies.
 
-    Existing body-percentage filters and base/departure rules remain active.
-    When base_range_max_legin=True, the leg-in range must be at least
+    Existing leg-in, base, and departure rules remain active. When
+    base_range_max_legin=True, the leg-in range must be at least
     legin_to_base_range_ratio times each base candle's range.
-    Combined leg-out range must be strictly greater than
-    legout_to_legin_range_ratio times the leg-in range.
     """
     d = df.copy()
     n = len(d)
@@ -156,8 +156,8 @@ def detect_patterns(
         direction = 1 if is_demand else -1
         selected = None
 
-        # Prefer a valid two-candle departure when both variants qualify.
-        # Longer base sequences still take priority, as in the Pine script.
+        # Longer base sequences retain priority; within a base sequence,
+        # the longest valid consecutive same-colour leg-out run is selected.
         for count in range(1, max_base_count + 1):
             if count not in allowed:
                 continue
