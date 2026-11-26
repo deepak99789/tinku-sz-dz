@@ -27,7 +27,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install reporting dependencies
-        run: pip install pandas requests reportlab exchange-calendars
+        run: pip install pandas requests reportlab pandas-market-calendars
 
       - name: Generate and send due reports
         env:
