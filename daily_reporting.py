@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
-import exchange_calendars as xcals
+import pandas_market_calendars as mcal
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import landscape, A4
 from reportlab.lib.styles import getSampleStyleSheet
@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent
 MARKETS = {
     "india": {"label": "India", "timezone": "Asia/Kolkata", "calendar": "XNSE",
               "chat_env": "TELEGRAM_CHAT_ID_INDIA"},
-    "us": {"label": "US", "timezone": "America/New_York", "calendar": "XNYS",
+    "us": {"label": "US", "timezone": "America/New_York", "calendar": "NYSE",
            "chat_env": "TELEGRAM_CHAT_ID_US"},
     "forex": {"label": "Forex", "timezone": "America/New_York", "chat_env": "TELEGRAM_CHAT_ID_FOREX"},
 }
@@ -306,11 +306,11 @@ def _session_due(market, now_utc):
     local_now = now_utc.tz_convert(cfg["timezone"])
     day = local_now.date().isoformat()
     try:
-        cal = xcals.get_calendar(cfg["calendar"])
-        session = pd.Timestamp(day)
-        if not cal.is_session(session):
+        cal = mcal.get_calendar(cfg["calendar"])
+        schedule = cal.schedule(start_date=day, end_date=day)
+        if schedule.empty:
             return None
-        close_utc = cal.session_close(session)
+        close_utc = pd.Timestamp(schedule.iloc[0]["market_close"])
         if close_utc.tzinfo is None:
             close_utc = close_utc.tz_localize("UTC")
         if now_utc >= close_utc + pd.Timedelta(minutes=10):
