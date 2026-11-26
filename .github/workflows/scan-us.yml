@@ -28,7 +28,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install pandas numpy yfinance requests matplotlib
+        run: pip install pandas numpy yfinance requests matplotlib reportlab pandas-market-calendars
 
       - name: 🔥 Pull latest state BEFORE scanning
         run: |
@@ -64,7 +64,7 @@ jobs:
           echo "..."
           
           # Stage state file
-          git add alert_state_us.json
+          git add alert_state_us.json report_ledger_us.json
           
           # Check if anything changed
           if git diff --cached --quiet; then

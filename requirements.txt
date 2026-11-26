@@ -6,3 +6,5 @@ yfinance>=0.2.40
 plotly>=5.20
 matplotlib>=3.7
 requests>=2.31
+reportlab>=4.0
+pandas-market-calendars>=4.4

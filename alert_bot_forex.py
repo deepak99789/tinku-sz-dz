@@ -16,6 +16,7 @@ import yfinance as yf
 from pattern_engine import run_full_pipeline
 from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
+from daily_reporting import ReportLedger
 from forex_data import FOREX_TICKERS, fetch_forex_data
 
 # ==========================================================================
@@ -209,6 +210,7 @@ def main():
     total_events = 0
     total_zones = 0
     pending_alerts = []
+    report_ledger = ReportLedger('forex')
 
     for tkr in TICKERS:
         for itv in INTERVALS:
@@ -237,6 +239,7 @@ def main():
                 logger.error(f"❌ Error: {e}")
                 continue
 
+            report_ledger.record_scan(tkr, itv, df, result)
             events = result.events
             total_events += len(events)
             total_zones += len(result.all_zones)
@@ -264,7 +267,7 @@ def main():
                 chart_bytes = render_zone_chart(df, e, tkr, itv)
                 pending_alerts.append({
                     "ticker": tkr, "interval": itv, "type": e["type"],
-                    "text": txt, "chart_bytes": chart_bytes, "key": key
+                    "text": txt, "chart_bytes": chart_bytes, "key": key, "event": e, "df": df
                 })
 
     for i in range(0, len(pending_alerts), BATCH_SIZE):
@@ -278,6 +281,7 @@ def main():
                 sent_keys.add(alert["key"])
                 last_alert_time[alert["key"]] = time.time()
                 new_count += 1
+                report_ledger.record_alert_sent(alert['ticker'], alert['interval'], alert['event'], alert['df'])
             else:
                 logger.error("Telegram send failed for %s %s: %s",
                              alert["ticker"], alert["interval"], msg)
@@ -286,6 +290,7 @@ def main():
 
     # 🔥 Force save state
     save_state(sent_keys)
+    report_ledger.save()
     
     logger.info("📊 FOREX + COMMODITY + CRYPTO + INDICES SCAN COMPLETE (REAL DATA)")
     logger.info(f"  • Symbols: {len(TICKERS)}")
