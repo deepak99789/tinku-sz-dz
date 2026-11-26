@@ -233,7 +233,7 @@ def _pdf_bytes(title, period, zones, summary):
                            ("ALIGN",(0,0),(-1,-1),"CENTER"),("PADDING",(0,0),(-1,-1),6)]))
     story += [t, Spacer(1, 14)]
     detail = [["Symbol","TF","Pattern","Type","Entry","SL","Target","RR","Base","Legout","Status"]]
-    for z in zones[:1500]:
+    for z in zones:
         detail.append([str(z.get("symbol","")),str(z.get("timeframe","")),str(z.get("pattern","")),
                        str(z.get("zone_type","")),f'{float(z.get("proximal_entry",0)):.8g}',
                        f'{float(z.get("distal_stoploss",0)):.8g}',f'{float(z.get("target",0)):.8g}',
@@ -244,8 +244,6 @@ def _pdf_bytes(title, period, zones, summary):
                                ("TEXTCOLOR",(0,0),(-1,0),colors.white),("GRID",(0,0),(-1,-1),0.25,colors.lightgrey),
                                ("FONTSIZE",(0,0),(-1,-1),7),("PADDING",(0,0),(-1,-1),3)]))
     story.append(table)
-    if len(zones) > 1500:
-        story.append(Paragraph("PDF detail is capped at 1,500 rows; CSV contains every zone.", styles["Italic"]))
     doc.build(story)
     return buf.getvalue()
 
