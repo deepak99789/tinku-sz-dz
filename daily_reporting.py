@@ -263,14 +263,14 @@ def _pdf_bytes(title, period, zones, summary):
                            ("TEXTCOLOR",(0,0),(-1,0),colors.white),("GRID",(0,0),(-1,-1),0.4,colors.grey),
                            ("ALIGN",(0,0),(-1,-1),"CENTER"),("PADDING",(0,0),(-1,-1),6)]))
     story += [t, Spacer(1, 14)]
-    detail = [["Symbol","TF","Pattern","Type","Entry","SL","Target","RR","Base","Legout","Status"]]
+    detail = [["Symbol","TF","Pattern","Type","Entry","SL","Target","RR","Base","Legout","Status","Result"]]
     for z in zones:
         detail.append([str(z.get("symbol","")),str(z.get("timeframe","")),str(z.get("pattern","")),
                        str(z.get("zone_type","")),f'{float(z.get("proximal_entry",0)):.8g}',
                        f'{float(z.get("distal_stoploss",0)):.8g}',f'{float(z.get("target",0)):.8g}',
                        str(z.get("risk_reward") or ""),str(z.get("base_count","")),
-                       str(z.get("legout_count","")),str(z.get("status",""))])
-    table = Table(detail, repeatRows=1, colWidths=[75,38,45,48,60,60,60,35,35,40,48])
+                       str(z.get("legout_count","")),str(z.get("status","")),str(z.get("outcome","Pending"))])
+    table = Table(detail, repeatRows=1, colWidths=[75,38,45,48,60,60,60,35,35,40,48,45])
     table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#243447")),
                                ("TEXTCOLOR",(0,0),(-1,0),colors.white),("GRID",(0,0),(-1,-1),0.25,colors.lightgrey),
                                ("FONTSIZE",(0,0),(-1,-1),7),("PADDING",(0,0),(-1,-1),3)]))
@@ -362,10 +362,10 @@ def send_report(market, period, zones, events, sent, chat_id=None, title=None):
         raise RuntimeError(f"Telegram chat id missing for {market}")
     summary = _summary(zones, events, sent)
     label = title or (cfg["label"] if cfg else "Combined")
-    caption = (f"📊 {label} Daily Report\\nPeriod: {period} (zones formed)\\n"
-               f"Zones: {summary['total_zones']} | Demand: {summary['demand']} | Supply: {summary['supply']}\\n"
+    caption = (f"📊 {label} Daily Report\nPeriod: {period} (zones formed)\n"
+               f"Zones: {summary['total_zones']} | Demand: {summary['demand']} | Supply: {summary['supply']}\n"
                f"Alerted zones: {summary['alerts_sent']} | TP: {summary['target_hits']} ({summary['tp_rate']:.1f}%) | "
-               f"SL: {summary['sl_hits']} ({summary['sl_rate']:.1f}%)\\n"
+               f"SL: {summary['sl_hits']} ({summary['sl_rate']:.1f}%)\n"
                f"Pending: {summary['pending']} | Active: {summary['active']} | "
                f"Untouched: {summary['untouched']} | Invalid: {summary['invalid']}")
     csv_payload = _csv_bytes(zones)
