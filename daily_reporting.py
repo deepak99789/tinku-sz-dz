@@ -37,7 +37,7 @@ CSV_FIELDS = [
     "zone_id", "market", "date", "formed_at", "symbol", "timeframe",
     "pattern", "zone_type", "proximal_entry", "distal_stoploss", "target",
     "risk_reward", "base_count", "legout_count", "status", "activated",
-    "pre_alerted", "result_time", "alerts_sent"
+    "pre_alerted", "result_time", "alerts_sent", "alerted", "outcome", "outcome_time"
 ]
 
 
@@ -180,27 +180,55 @@ def _report_rows(market, day=None, since_utc=None):
         row["alerts_sent"] = sum(1 for a in data.get("sent_alerts", {}).values()
                                  if a.get("zone_id") == row.get("zone_id"))
         zones.append(row)
+    # Daily reports are a formation-date cohort: include later TP/SL outcomes
+    # and alerts for zones formed on the selected day.
+    cohort_ids = {z.get("zone_id") for z in zones}
     events = list(data.get("events", {}).values())
-    if day:
-        events = [e for e in events if _local_date(e["event_at"], tz_name) == day]
-    elif since_utc:
-        events = [e for e in events if pd.Timestamp(e["event_at"]) >= since_utc]
     sent = list(data.get("sent_alerts", {}).values())
     if day:
-        sent = [a for a in sent if _local_date(a["sent_at"], tz_name) == day]
+        events = [e for e in events if e.get("zone_id") in cohort_ids]
+        sent = [a for a in sent if a.get("zone_id") in cohort_ids]
     elif since_utc:
+        events = [e for e in events if pd.Timestamp(e["event_at"]) >= since_utc]
         sent = [a for a in sent if pd.Timestamp(a["sent_at"]) >= since_utc]
+
+    # Count each formed zone once; use its earliest terminal TP/SL event.
+    terminal_by_zone = {}
+    for event in sorted(events, key=lambda e: e.get("event_at", "")):
+        if event.get("event_type") in ("tp_hit", "sl_hit"):
+            terminal_by_zone.setdefault(event.get("zone_id"), event)
+
+    alerted_ids = {a.get("zone_id") for a in sent}
+    for zone in zones:
+        zone_id = zone.get("zone_id")
+        outcome_event = terminal_by_zone.get(zone_id)
+        zone["alerted"] = zone_id in alerted_ids
+        zone["alerts_sent"] = sum(1 for a in sent if a.get("zone_id") == zone_id)
+        zone["outcome"] = (
+            "TP" if outcome_event and outcome_event.get("event_type") == "tp_hit"
+            else "SL" if outcome_event else "Pending"
+        )
+        zone["outcome_time"] = outcome_event.get("event_at") if outcome_event else None
+
+    events = list(terminal_by_zone.values())
     return zones, events, sent
 
 
 def _summary(zones, events, sent):
+    total = len(zones)
+    tp = sum(z.get("outcome") == "TP" for z in zones)
+    sl = sum(z.get("outcome") == "SL" for z in zones)
+    resolved = tp + sl
     return {
-        "total_zones": len(zones),
+        "total_zones": total,
         "demand": sum(z["zone_type"] == "Demand" for z in zones),
         "supply": sum(z["zone_type"] == "Supply" for z in zones),
-        "alerts_sent": len(sent),
-        "target_hits": sum(e["event_type"] == "tp_hit" for e in events),
-        "sl_hits": sum(e["event_type"] == "sl_hit" for e in events),
+        "alerts_sent": sum(bool(z.get("alerted")) for z in zones),
+        "target_hits": tp,
+        "sl_hits": sl,
+        "pending": total - resolved,
+        "tp_rate": round((tp / resolved) * 100, 1) if resolved else 0.0,
+        "sl_rate": round((sl / resolved) * 100, 1) if resolved else 0.0,
         "active": sum(z["status"] == "active" for z in zones),
         "untouched": sum(z["status"] == "active" and not z["activated"] for z in zones),
         "invalid": sum(z["status"] == "invalid" for z in zones),
@@ -223,9 +251,11 @@ def _pdf_bytes(title, period, zones, summary):
     styles = getSampleStyleSheet()
     story = [Paragraph(title, styles["Title"]), Paragraph(f"Period: {period}", styles["Normal"]), Spacer(1, 12)]
     metrics = [
-        ["Total zones", "Demand", "Supply", "Alerts sent", "Target hits", "SL hits", "Active", "Untouched", "Invalid"],
+        ["Total zones", "Demand", "Supply", "Alerted zones", "TP zones", "SL zones"],
         [str(summary["total_zones"]), str(summary["demand"]), str(summary["supply"]),
-         str(summary["alerts_sent"]), str(summary["target_hits"]), str(summary["sl_hits"]),
+         str(summary["alerts_sent"]), str(summary["target_hits"]), str(summary["sl_hits"])],
+        ["Pending", "TP rate", "SL rate", "Active", "Untouched", "Invalid"],
+        [str(summary["pending"]), f'{summary["tp_rate"]:.1f}%', f'{summary["sl_rate"]:.1f}%',
          str(summary["active"]), str(summary["untouched"]), str(summary["invalid"])]
     ]
     t = Table(metrics, repeatRows=1)
@@ -332,10 +362,12 @@ def send_report(market, period, zones, events, sent, chat_id=None, title=None):
         raise RuntimeError(f"Telegram chat id missing for {market}")
     summary = _summary(zones, events, sent)
     label = title or (cfg["label"] if cfg else "Combined")
-    caption = (f"📊 {label} Daily Report\nPeriod: {period}\n"
-               f"Zones: {summary['total_zones']} | Demand: {summary['demand']} | Supply: {summary['supply']}\n"
-               f"Alerts: {summary['alerts_sent']} | TP: {summary['target_hits']} | SL: {summary['sl_hits']}\n"
-               f"Active: {summary['active']} | Untouched: {summary['untouched']} | Invalid: {summary['invalid']}")
+    caption = (f"📊 {label} Daily Report\\nPeriod: {period} (zones formed)\\n"
+               f"Zones: {summary['total_zones']} | Demand: {summary['demand']} | Supply: {summary['supply']}\\n"
+               f"Alerted zones: {summary['alerts_sent']} | TP: {summary['target_hits']} ({summary['tp_rate']:.1f}%) | "
+               f"SL: {summary['sl_hits']} ({summary['sl_rate']:.1f}%)\\n"
+               f"Pending: {summary['pending']} | Active: {summary['active']} | "
+               f"Untouched: {summary['untouched']} | Invalid: {summary['invalid']}")
     csv_payload = _csv_bytes(zones)
     pdf_payload = _pdf_bytes(f"{label} Daily Report", period, zones, summary)
     safe = label.lower().replace(" ", "_")
