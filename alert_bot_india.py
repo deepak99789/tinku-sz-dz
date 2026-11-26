@@ -16,6 +16,7 @@ import yfinance as yf
 from pattern_engine import run_full_pipeline
 from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
+from daily_reporting import ReportLedger
 
 # ==========================================================================
 # ⚙️ CONFIG - SUPPORTED TIMEFRAMES (REAL DATA)
@@ -277,6 +278,7 @@ def main():
     total_events = 0
     total_zones = 0
     pending_alerts = []
+    report_ledger = ReportLedger('india')
 
     for tkr in TICKERS:
         for itv in INTERVALS:
@@ -309,6 +311,7 @@ def main():
                 logger.error(f"❌ Error running pipeline: {e}")
                 continue
 
+            report_ledger.record_scan(tkr, itv, df, result)
             events = result.events
             total_events += len(events)
             total_zones += len(result.all_zones)
@@ -354,7 +357,9 @@ def main():
                     "type": e["type"],
                     "text": txt,
                     "chart_bytes": chart_bytes,
-                    "key": key
+                    "key": key,
+                    "event": e,
+                    "df": df
                 })
                 
                 logger.info(f"  📝 Queued: {tkr} {itv} {e['type']}")
@@ -375,6 +380,7 @@ def main():
             if ok:
                 logger.info(f"  ✅ {icon} ALERT SENT: {alert['ticker']} {alert['interval']} {alert['type']}")
                 new_count += 1
+                report_ledger.record_alert_sent(alert['ticker'], alert['interval'], alert['event'], alert['df'])
             else:
                 logger.error(f"  ❌ Failed: {alert['ticker']} {alert['interval']} - {msg}")
         
@@ -383,6 +389,7 @@ def main():
             time.sleep(3)
 
     save_state(sent_keys)
+    report_ledger.save()
     
     logger.info("\n" + "=" * 60)
     logger.info("📊 NIFTY 500 SCAN COMPLETE (REAL DATA)")
