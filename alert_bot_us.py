@@ -98,21 +98,18 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
     if itv in CUSTOM_INTERVAL_MINUTES:
         # Custom Telegram timeframes use the same real 5-minute OHLC source
         # and exchange-session alignment as the Streamlit dashboard.
-        if tkr in FOREX_TICKERS:
-            base_df = fetch_forex_data(tkr, "5m", requested_period)
-        else:
-            try:
-                base_df = yf.download(
-                    tkr, interval="5m", period=requested_period,
-                    progress=False, auto_adjust=False, threads=False,
-                )
-            except Exception as exc:
-                logger.warning("5m source failed for %s %s: %s", tkr, itv, exc)
-                return pd.DataFrame()
-            if not base_df.empty and isinstance(base_df.columns, pd.MultiIndex):
-                base_df.columns = base_df.columns.get_level_values(0)
-            if not base_df.empty:
-                base_df = base_df[["Open", "High", "Low", "Close"]].dropna()
+        try:
+            base_df = yf.download(
+                tkr, interval="5m", period=requested_period,
+                progress=False, auto_adjust=False, threads=False,
+            )
+        except Exception as exc:
+            logger.warning("5m source failed for %s %s: %s", tkr, itv, exc)
+            return pd.DataFrame()
+        if not base_df.empty and isinstance(base_df.columns, pd.MultiIndex):
+            base_df.columns = base_df.columns.get_level_values(0)
+        if not base_df.empty:
+            base_df = base_df[["Open", "High", "Low", "Close"]].dropna()
         return resample_custom_timeframe(base_df, tkr, itv)
 
     yf_interval = get_yf_interval(itv)
@@ -121,7 +118,6 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
         try:
             df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False)
         except Exception:
-            continue
             continue
         if df.empty:
             continue
