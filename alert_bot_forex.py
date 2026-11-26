@@ -23,10 +23,9 @@ from forex_data import FOREX_TICKERS, fetch_forex_data
 # ⚙️ CONFIG - SUPPORTED TIMEFRAMES (REAL DATA)
 # ==========================================================================
 
-INTERVALS = [
-    "15m", "30m", "60m", "90m",
-    "1d", "1wk", "1mo", "3mo"
-]
+from alert_timeframes import FOREX_INTERVALS, CUSTOM_INTERVAL_MINUTES, resample_custom_timeframe
+
+INTERVALS = FOREX_INTERVALS
 
 COMMODITY_TICKERS = ["GC=F", "SI=F"]
 CRYPTO_TICKERS = ["BTC-USD"]
@@ -95,6 +94,26 @@ def get_yf_interval(itv: str) -> str:
 
 
 def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
+    if itv in CUSTOM_INTERVAL_MINUTES:
+        # Custom Telegram timeframes use the same real 5-minute OHLC source
+        # and exchange-session alignment as the Streamlit dashboard.
+        if tkr in FOREX_TICKERS:
+            base_df = fetch_forex_data(tkr, "5m", requested_period)
+        else:
+            try:
+                base_df = yf.download(
+                    tkr, interval="5m", period=requested_period,
+                    progress=False, auto_adjust=False, threads=False,
+                )
+            except Exception as exc:
+                logger.warning("5m source failed for %s %s: %s", tkr, itv, exc)
+                return pd.DataFrame()
+            if not base_df.empty and isinstance(base_df.columns, pd.MultiIndex):
+                base_df.columns = base_df.columns.get_level_values(0)
+            if not base_df.empty:
+                base_df = base_df[["Open", "High", "Low", "Close"]].dropna()
+        return resample_custom_timeframe(base_df, tkr, itv)
+
     if tkr in FOREX_TICKERS:
         return fetch_forex_data(tkr, itv, requested_period)
 
@@ -102,8 +121,7 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
     idx = PERIOD_LADDER.index(requested_period) if requested_period in PERIOD_LADDER else 0
     for cand in [PERIOD_LADDER[i] for i in range(idx, -1, -1)]:
         try:
-            df = yf.download(tkr, interval=yf_interval, period=cand, progress=False,
-                              auto_adjust=False, threads=False)
+            df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False, threads=False)
         except Exception as exc:
             logger.warning("Yahoo fetch failed %s %s: %s", tkr, itv, exc)
             continue
@@ -114,13 +132,8 @@ def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
         df = df[["Open", "High", "Low", "Close"]].dropna()
         if not df.empty:
             return df
-    logger.error("DATA MISSING: %s %s", tkr, itv)
     return pd.DataFrame()
 
-
-# ==========================================================================
-# 🔥 STATE FILE FUNCTIONS - FIXED WITH FORCE SAVE
-# ==========================================================================
 
 def load_state() -> set:
     if os.path.exists(STATE_FILE):
