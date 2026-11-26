@@ -398,8 +398,8 @@ with settings_box:
         base_count_filter = st.selectbox("Base Candle Count", ["All", "1", "2", "3"], index=0)
     with row2_c7:
         legout_count_filter = st.selectbox(
-            "Legout Candle Count", ["All", "1", "2", "3"], index=0,
-            help="Sirf wahi zones dikhao jinka legout candle count is value ke barabar ho.",
+            "Legout Candle Count", ["All", "1", "2", "3", "More Than 3"], index=0,
+            help="First Legout must pass strength rules; following same-colour candles are counted. More Than 3 shows counts above 3.",
         )
 
     row2c_c1, row2c_c2 = st.columns([1.2, 1.8])
@@ -1020,7 +1020,11 @@ if "combo_results" in st.session_state:
         zones_filtered = [
             z for z in result.all_zones
             if z.status in allowed_status
-            and (legout_count_filter == "All" or z.legout_count == int(legout_count_filter))
+            and (
+                legout_count_filter == "All"
+                or (legout_count_filter == "More Than 3" and z.legout_count > 3)
+                or (legout_count_filter not in {"All", "More Than 3"} and z.legout_count == int(legout_count_filter))
+            )
         ]
 
         c1, c2, c3, c4 = st.columns(4)
@@ -1082,7 +1086,9 @@ if "combo_results" in st.session_state:
             for zone_index, z in enumerate(r.all_zones):
                 if z.status not in allowed_status:
                     continue
-                if legout_count_filter != "All" and z.legout_count != int(legout_count_filter):
+                if legout_count_filter == "More Than 3" and z.legout_count <= 3:
+                    continue
+                if legout_count_filter not in {"All", "More Than 3"} and z.legout_count != int(legout_count_filter):
                     continue
                 rows.append({
                     "_combo_key": (tkr, itv),
