@@ -264,7 +264,7 @@ def _send_document(token, chat_id, payload, filename, caption):
 def send_report(market, period, zones, events, sent, chat_id=None, title=None):
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     cfg = MARKETS.get(market)
-    if not token or not cfg:
+    if not token or (not cfg and market != "combined"):
         raise RuntimeError("TELEGRAM_BOT_TOKEN or market configuration missing")
     chat_id = chat_id or os.getenv(cfg["chat_env"], "")
     if market == "combined" and not chat_id:
