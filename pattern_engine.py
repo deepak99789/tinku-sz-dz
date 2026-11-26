@@ -199,10 +199,15 @@ def detect_patterns(
                 if legin_pct < legin_body_min:
                     continue
 
-                # Preserve the original range-strength rule on the first
-                # Legout candle only; later same-colour candles add no filter.
-                first_legout_range = h[first_legout_idx] - l[first_legout_idx]
-                if first_legout_range <= legin_range * max(float(legout_to_legin_range_ratio), 0.01):
+                # Preserve the original combined Legout-range strength rule.
+                # Later candles need only match the first Legout colour; they
+                # are not required to pass the body-percentage filter.
+                combined_legout_range = float(np.sum(
+                    h[first_legout_idx:i + 1] - l[first_legout_idx:i + 1]
+                ))
+                if np.any((h[first_legout_idx:i + 1] - l[first_legout_idx:i + 1]) <= 0):
+                    continue
+                if combined_legout_range <= legin_range * max(float(legout_to_legin_range_ratio), 0.01):
                     continue
 
                 base_valid = True
