@@ -346,6 +346,7 @@ def run_due_reports():
         LOG.info("Sent Forex report for %s", forex_day)
 
     # One combined rolling 24-hour report after the New York 5 PM rollover.
+    # At 17:10 New York, delivery is about 03:40 IST in US winter or 02:40 IST in US summer.
     combined_day = forex_day
     combined_key = f"combined:{combined_day}"
     if ny_now.weekday() < 5 and (ny_now.hour, ny_now.minute) >= (17, 15) and not state.get(combined_key):
