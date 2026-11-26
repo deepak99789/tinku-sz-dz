@@ -29,13 +29,25 @@ from forex_data import FOREX_TICKERS, fetch_forex_data
 st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 
 # ==========================================================================
-# 🔥 SUPPORTED YFINANCE TIMEFRAMES (REAL DATA)
+# 🔥 MARKET-SPECIFIC TIMEFRAMES
+# Custom intraday intervals are built from real 5-minute OHLCV candles.
+# Only the Streamlit dashboard (app.py) uses these additions.
 # ==========================================================================
+
+INDIA_INTERVAL_OPTIONS = ["75m", "125m", "2h"]
+US_INTERVAL_OPTIONS = ["75m", "125m", "2h"]
+FOREX_INTERVAL_OPTIONS = ["10m", "75m", "125m", "2h", "4h", "6h", "8h", "10h", "12h", "16h"]
 
 INTERVAL_OPTIONS = [
     "5m", "15m", "30m", "60m", "90m",
     "1d", "5d", "1wk", "1mo", "3mo"
 ]
+
+CUSTOM_INTERVAL_MINUTES = {
+    "10m": 10, "75m": 75, "125m": 125,
+    "2h": 120, "4h": 240, "6h": 360, "8h": 480,
+    "10h": 600, "12h": 720, "16h": 960,
+}
 
 PERIOD_OPTIONS = ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
 
@@ -49,7 +61,7 @@ YF_INTERVAL_MAP_APP = {
 PERIOD_BY_INTERVAL = {
     "5m": "1mo", "15m": "1mo", "30m": "1mo",
     "60m": "1mo", "90m": "1mo",
-    "1d": "1mo", "5d": "5y",  # 1d uses 1mo data, 5d uses 5y data
+    "1d": "1mo", "5d": "5y",
     "1wk": "10y", "1mo": "10y", "3mo": "10y",
 }
 
@@ -286,12 +298,26 @@ with settings_box:
             options=["All", "Fresh Zone", "SL Zone", "Target Zone"],
             default=["All"],
         )
+    # Market-specific timeframe choices requested for the dashboard.
+    if market in ("🇮🇳 NIFTY 50", "🇮🇳 NIFTY 100", "🇮🇳 NIFTY 500"):
+        market_interval_options = INDIA_INTERVAL_OPTIONS
+        default_interval_selection = INDIA_INTERVAL_OPTIONS
+    elif market == "🇺🇸 US Stocks / Index":
+        market_interval_options = US_INTERVAL_OPTIONS
+        default_interval_selection = US_INTERVAL_OPTIONS
+    elif market == "💱 Forex":
+        market_interval_options = FOREX_INTERVAL_OPTIONS
+        default_interval_selection = FOREX_INTERVAL_OPTIONS
+    else:
+        market_interval_options = INTERVAL_OPTIONS
+        default_interval_selection = ["1d"]
+
     with row1_c4:
         select_all_intervals = st.checkbox("✅ Select ALL timeframes", value=False)
         intervals_selected = st.multiselect(
             "Timeframe(s)",
-            options=INTERVAL_OPTIONS,
-            default=INTERVAL_OPTIONS if select_all_intervals else ["1d"],
+            options=market_interval_options,
+            default=default_interval_selection,
             disabled=select_all_intervals,
         )
 
@@ -299,7 +325,7 @@ with settings_box:
         final_tickers = list(preset["tickers"])
     else:
         final_tickers = list(dict.fromkeys(tickers_selected))
-    final_intervals = INTERVAL_OPTIONS if select_all_intervals else intervals_selected
+    final_intervals = market_interval_options if select_all_intervals else intervals_selected
 
     st.divider()
 
@@ -664,8 +690,80 @@ def play_beep():
     )
 
 
+def _resample_custom_timeframe(df: pd.DataFrame, ticker: str, interval: str) -> pd.DataFrame:
+    """Build session-aligned custom candles from real 5-minute OHLC data."""
+    minutes = CUSTOM_INTERVAL_MINUTES.get(interval)
+    if not minutes or df is None or df.empty:
+        return pd.DataFrame()
+
+    out = df.copy()
+    out = out[["Open", "High", "Low", "Close"]].dropna().sort_index()
+    idx = pd.DatetimeIndex(out.index)
+
+    if ticker in FOREX_TICKERS:
+        tz_name, session_open, session_close, offset = "UTC", None, None, "0min"
+    elif ticker.endswith((".NS", ".BO")):
+        tz_name, session_open, session_close, offset = "Asia/Kolkata", "09:15", "15:30", "9h15min"
+    else:
+        tz_name, session_open, session_close, offset = "America/New_York", "09:30", "16:00", "9h30min"
+
+    if idx.tz is None:
+        idx = idx.tz_localize(tz_name)
+    else:
+        idx = idx.tz_convert(tz_name)
+    out.index = idx
+
+    # Exchange instruments: use regular trading sessions only. Forex stays
+    # continuous and is aligned to UTC midnight.
+    if session_open:
+        local_times = out.index.strftime("%H:%M")
+        weekdays = out.index.weekday < 5
+        out = out.loc[
+            weekdays
+            & (local_times >= session_open)
+            & (local_times < session_close)
+        ]
+    if out.empty:
+        return pd.DataFrame()
+
+    rule = f"{minutes}min"
+    try:
+        result = out.resample(
+            rule, origin="start_day", offset=offset, label="left", closed="left"
+        ).agg({
+            "Open": "first",
+            "High": "max",
+            "Low": "min",
+            "Close": "last",
+        }).dropna()
+    except Exception:
+        return pd.DataFrame()
+
+    # Drop empty buckets and retain only candles containing source observations.
+    return result.dropna()
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
+    if itv in CUSTOM_INTERVAL_MINUTES:
+        # Yahoo and the shared Forex provider supply real 5-minute candles;
+        # pandas aggregates them into the requested custom timeframe.
+        if tkr in FOREX_TICKERS:
+            base_df = fetch_forex_data(tkr, "5m", per)
+        else:
+            try:
+                base_df = yf.download(
+                    tkr, interval="5m", period=per, progress=False,
+                    auto_adjust=False, threads=False,
+                )
+            except Exception:
+                return pd.DataFrame()
+            if not base_df.empty and isinstance(base_df.columns, pd.MultiIndex):
+                base_df.columns = base_df.columns.get_level_values(0)
+            if not base_df.empty:
+                base_df = base_df[["Open", "High", "Low", "Close"]].dropna()
+        return _resample_custom_timeframe(base_df, tkr, itv)
+
     if tkr in FOREX_TICKERS:
         return fetch_forex_data(tkr, itv, per)
 
