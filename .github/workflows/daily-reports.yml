@@ -42,7 +42,7 @@ jobs:
         run: |
           git config user.name "zone-report-bot"
           git config user.email "actions@github.com"
-          git add report_state.json
+          if [ -f report_state.json ]; then git add report_state.json; fi
           if git diff --cached --quiet; then
             echo "No new report delivery state."
             exit 0
