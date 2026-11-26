@@ -6,7 +6,7 @@ This feature adds four Telegram report deliveries without changing the existing 
 
 - India: after the NSE cash-market session closes (calendar close + 10 minutes).
 - US: after the NYSE regular session closes (calendar close + 10 minutes).
-- Forex: after the New York 5:00 PM rollover (17:10 America/New_York).
+- Forex: after the New York 5:00 PM rollover (17:10 America/New_York). In India this is approximately 3:40 AM IST during US standard time and 2:40 AM IST during US daylight-saving time. The 5:00 PM rollover itself is approximately 3:30 AM IST / 2:30 AM IST respectively.
 - Combined: at 17:15 America/New_York, covering the trailing 24 hours across India, US, and Forex. This is a rolling 24-hour combined report, not a same-calendar-date aggregation, because the markets use different timezones.
 
 The report workflow checks every five minutes. GitHub Actions cron is not second-accurate, so delivery can be several minutes late. Exchange-calendar holidays are skipped; calendars may not immediately reflect an exceptional same-day exchange closure, so confirm exceptional holiday notices separately.
