@@ -10,6 +10,8 @@ import datetime as dt
 import logging
 import time
 
+from scanner_fetch import iter_symbol_frames
+
 import pandas as pd
 import yfinance as yf
 
@@ -234,9 +236,12 @@ def main():
 
     custom_source_cache = {}
 
-    for tkr in TICKERS:
+    for tkr, ticker_frames in iter_symbol_frames(
+        TICKERS, INTERVALS, fetch_smart, PERIOD, custom_source_cache,
+        max_workers=2,
+    ):
         for itv in INTERVALS:
-            df = fetch_smart(tkr, itv, PERIOD, custom_source_cache)
+            df = ticker_frames[itv]
             if df.empty:
                 continue
             
