@@ -93,26 +93,33 @@ def get_yf_interval(itv: str) -> str:
     return YF_INTERVAL_MAP.get(itv, itv)
 
 
-def fetch_smart(tkr: str, itv: str, requested_period: str) -> pd.DataFrame:
+def fetch_smart(tkr: str, itv: str, requested_period: str, custom_source_cache=None) -> pd.DataFrame:
     if itv in CUSTOM_INTERVAL_MINUTES:
         # Custom Telegram timeframes use the same real 5-minute OHLC source
         # and exchange-session alignment as the Streamlit dashboard.
-        if tkr in FOREX_TICKERS:
-            base_df = fetch_forex_data(tkr, "5m", requested_period)
-        else:
-            try:
-                base_df = yf.download(
-                    tkr, interval="5m", period=requested_period,
-                    progress=False, auto_adjust=False, threads=False,
-                )
-            except Exception as exc:
-                logger.warning("5m source failed for %s %s: %s", tkr, itv, exc)
-                return pd.DataFrame()
-            if not base_df.empty and isinstance(base_df.columns, pd.MultiIndex):
-                base_df.columns = base_df.columns.get_level_values(0)
-            if not base_df.empty:
-                base_df = base_df[["Open", "High", "Low", "Close"]].dropna()
-        return resample_custom_timeframe(base_df, tkr, itv)
+        # Reuse one 5-minute source download for every custom timeframe
+        # of this ticker during the current scan run.
+        cache = custom_source_cache if custom_source_cache is not None else {}
+        cache_key = (tkr, requested_period)
+        if cache_key not in cache:
+            if tkr in FOREX_TICKERS:
+                base_df = fetch_forex_data(tkr, "5m", requested_period)
+            else:
+                try:
+                    base_df = yf.download(
+                        tkr, interval="5m", period=requested_period,
+                        progress=False, auto_adjust=False, threads=False,
+                    )
+                except Exception as exc:
+                    logger.warning("5m source failed for %s: %s", tkr, exc)
+                    base_df = pd.DataFrame()
+                if not base_df.empty and isinstance(base_df.columns, pd.MultiIndex):
+                    base_df.columns = base_df.columns.get_level_values(0)
+                if not base_df.empty:
+                    base_df = base_df[["Open", "High", "Low", "Close"]].dropna()
+            cache[cache_key] = base_df.copy() if base_df is not None else pd.DataFrame()
+        base_df = cache[cache_key]
+        return resample_custom_timeframe(base_df.copy(), tkr, itv)
 
     if tkr in FOREX_TICKERS:
         return fetch_forex_data(tkr, itv, requested_period)
@@ -225,9 +232,11 @@ def main():
     pending_alerts = []
     report_ledger = ReportLedger('forex')
 
+    custom_source_cache = {}
+
     for tkr in TICKERS:
         for itv in INTERVALS:
-            df = fetch_smart(tkr, itv, PERIOD)
+            df = fetch_smart(tkr, itv, PERIOD, custom_source_cache)
             if df.empty:
                 continue
             
