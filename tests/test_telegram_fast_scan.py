@@ -35,6 +35,31 @@ class TelegramFastScanEquivalenceTests(unittest.TestCase):
             optimized = detect_patterns(frame, **kwargs, telegram_fast_scan=True)
             assert_frame_equal(reference, optimized)
 
+
+    def test_fast_telegram_scan_matches_india_scanner_settings(self):
+        rng = np.random.default_rng(20261128)
+        for _ in range(12):
+            count = 420
+            close = 100 + np.cumsum(rng.normal(0, 0.8, count))
+            open_ = close + rng.normal(0, 0.6, count)
+            spread = rng.uniform(0.1, 1.4, count)
+            frame = pd.DataFrame({
+                "Open": open_, "High": np.maximum(open_, close) + spread,
+                "Low": np.minimum(open_, close) - spread, "Close": close,
+            })
+            kwargs = dict(
+                base_count_filter="1", max_base_count=1,
+                legin_body_min=60.0, base_body_max=55.0,
+                legout_body_min=65.0, base_range_max_legin=True,
+                legout_must_respect_base_distal=True,
+                legin_must_strictly_exceed_base=True,
+                legout_open_within_legin_range=True,
+                telegram_first_legout_only_rules=True,
+            )
+            reference = detect_patterns(frame, **kwargs, telegram_fast_scan=False)
+            optimized = detect_patterns(frame, **kwargs, telegram_fast_scan=True)
+            assert_frame_equal(reference, optimized)
+
     def test_fast_flag_does_not_change_non_telegram_path(self):
         rng = np.random.default_rng(42)
         count = 180
