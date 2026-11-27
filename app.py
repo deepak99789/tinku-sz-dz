@@ -34,9 +34,11 @@ st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 # Only the Streamlit dashboard (app.py) uses these additions.
 # ==========================================================================
 
-INDIA_INTERVAL_OPTIONS = ["75m", "125m", "2h"]
-US_INTERVAL_OPTIONS = ["75m", "125m", "2h"]
-FOREX_INTERVAL_OPTIONS = ["10m", "75m", "125m", "2h", "4h", "6h", "8h", "10h", "12h", "16h"]
+# Preserve all original dashboard timeframes and add the market-specific custom intervals.
+LEGACY_INTERVAL_OPTIONS = ["5m", "15m", "30m", "60m", "90m", "1d", "5d", "1wk", "1mo", "3mo"]
+INDIA_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["75m", "125m", "2h"]
+US_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["75m", "125m", "2h"]
+FOREX_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["10m", "75m", "125m", "2h", "4h", "6h", "8h", "10h", "12h", "16h"]
 
 INTERVAL_OPTIONS = [
     "5m", "15m", "30m", "60m", "90m",
