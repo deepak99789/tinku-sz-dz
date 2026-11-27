@@ -95,6 +95,7 @@ def detect_patterns(
     legin_must_strictly_exceed_base: bool = False,
     legout_open_within_legin_range: bool = False,
     telegram_first_legout_only_rules: bool = False,
+    telegram_fast_scan: bool = False,
 ) -> pd.DataFrame:
     """
     Detect RBD/DBD/DBR/RBR patterns using closed OHLC candles.
@@ -145,6 +146,17 @@ def detect_patterns(
     h = d["High"].to_numpy(dtype=float)
     l = d["Low"].to_numpy(dtype=float)
 
+    # Telegram-only optimization: precompute consecutive valid same-direction runs.
+    telegram_direction_run = np.zeros(n, dtype=np.int32)
+    if telegram_fast_scan and telegram_first_legout_only_rules:
+        for idx in range(n):
+            if not np.isfinite([o[idx], c[idx], h[idx], l[idx]]).all() or c[idx] == o[idx] or h[idx] <= l[idx]:
+                continue
+            if idx > 0 and telegram_direction_run[idx - 1] > 0 and (c[idx] - o[idx]) * (c[idx - 1] - o[idx - 1]) > 0:
+                telegram_direction_run[idx] = telegram_direction_run[idx - 1] + 1
+            else:
+                telegram_direction_run[idx] = 1
+
     def body_pct(idx: int) -> float:
         candle_range = h[idx] - l[idx]
         if candle_range <= 0:
@@ -166,6 +178,8 @@ def detect_patterns(
                 continue
 
             max_legouts = i - count
+            if telegram_fast_scan and telegram_first_legout_only_rules:
+                max_legouts = min(max_legouts, int(telegram_direction_run[i]))
             legout_counts = range(1, max_legouts + 1)
             for legout_count in legout_counts:
                 first_legout_idx = i - legout_count + 1
@@ -180,20 +194,23 @@ def detect_patterns(
                 # threshold. Every later leg-out candle must keep the same color.
                 legout_valid = True
                 first_legout_range = h[first_legout_idx] - l[first_legout_idx]
-                for k in range(first_legout_idx, i + 1):
-                    if not np.isfinite([o[k], c[k], h[k], l[k]]).all():
-                        legout_valid = False
-                        break
-                    if (c[k] - o[k]) * direction <= 0:
-                        legout_valid = False
-                        break
-                    candle_range = h[k] - l[k]
-                    if candle_range <= 0:
-                        legout_valid = False
-                        break
-                    if k == first_legout_idx and body_pct(k) < legout_body_min:
-                        legout_valid = False
-                        break
+                if telegram_fast_scan and telegram_first_legout_only_rules:
+                    legout_valid = first_legout_range > 0 and body_pct(first_legout_idx) >= legout_body_min
+                else:
+                    for k in range(first_legout_idx, i + 1):
+                        if not np.isfinite([o[k], c[k], h[k], l[k]]).all():
+                            legout_valid = False
+                            break
+                        if (c[k] - o[k]) * direction <= 0:
+                            legout_valid = False
+                            break
+                        candle_range = h[k] - l[k]
+                        if candle_range <= 0:
+                            legout_valid = False
+                            break
+                        if k == first_legout_idx and body_pct(k) < legout_body_min:
+                            legout_valid = False
+                            break
 
                 if not legout_valid:
                     continue
@@ -626,6 +643,7 @@ def run_full_pipeline(
     legin_must_strictly_exceed_base: bool = False,
     legout_open_within_legin_range: bool = False,
     telegram_first_legout_only_rules: bool = False,
+    telegram_fast_scan: bool = False,
 ) -> DetectionResult:
     d = detect_patterns(
         df, base_count_filter=base_count_filter, proximal_method=proximal_method,
@@ -640,6 +658,7 @@ def run_full_pipeline(
         legin_must_strictly_exceed_base=legin_must_strictly_exceed_base,
         legout_open_within_legin_range=legout_open_within_legin_range,
         telegram_first_legout_only_rules=telegram_first_legout_only_rules,
+        telegram_fast_scan=telegram_fast_scan,
     )
     atr_series = wilder_atr(df, atr_length)
     result = track_zones(
