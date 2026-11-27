@@ -94,6 +94,7 @@ def detect_patterns(
     legout_open_beyond_proximal_base_close: bool = False,
     legin_must_strictly_exceed_base: bool = False,
     legout_open_within_legin_range: bool = False,
+    telegram_first_legout_only_rules: bool = False,
 ) -> pd.DataFrame:
     """
     Detect RBD/DBD/DBR/RBR patterns using closed OHLC candles.
@@ -175,10 +176,10 @@ def detect_patterns(
                 if legin_idx < 0:
                     continue
 
-                # Every leg-out candle must be in the departure direction
-                # and pass the existing minimum body/range percentage filter.
+                # Telegram: only the first leg-out candle must meet the body
+                # threshold. Every later leg-out candle must keep the same color.
                 legout_valid = True
-                combined_legout_range = 0.0
+                first_legout_range = h[first_legout_idx] - l[first_legout_idx]
                 for k in range(first_legout_idx, i + 1):
                     if not np.isfinite([o[k], c[k], h[k], l[k]]).all():
                         legout_valid = False
@@ -186,14 +187,13 @@ def detect_patterns(
                     if (c[k] - o[k]) * direction <= 0:
                         legout_valid = False
                         break
-                    if body_pct(k) < legout_body_min:
-                        legout_valid = False
-                        break
                     candle_range = h[k] - l[k]
                     if candle_range <= 0:
                         legout_valid = False
                         break
-                    combined_legout_range += candle_range
+                    if k == first_legout_idx and body_pct(k) < legout_body_min:
+                        legout_valid = False
+                        break
 
                 if not legout_valid:
                     continue
@@ -205,9 +205,15 @@ def detect_patterns(
                 if legin_pct < legin_body_min:
                     continue
 
-                # Configurable leg-out versus leg-in range strength.
-                if combined_legout_range <= legin_range * max(float(legout_to_legin_range_ratio), 0.01):
-                    continue
+                # Telegram compares the first leg-out candle's range only.
+                # Non-Telegram callers retain the previous combined-range rule.
+                if telegram_first_legout_only_rules:
+                    if first_legout_range <= legin_range * max(float(legout_to_legin_range_ratio), 0.01):
+                        continue
+                else:
+                    combined_legout_range = sum(h[k] - l[k] for k in range(first_legout_idx, i + 1))
+                    if combined_legout_range <= legin_range * max(float(legout_to_legin_range_ratio), 0.01):
+                        continue
 
                 base_valid = True
                 base_high = -np.inf
@@ -619,6 +625,7 @@ def run_full_pipeline(
     legout_open_beyond_proximal_base_close: bool = False,
     legin_must_strictly_exceed_base: bool = False,
     legout_open_within_legin_range: bool = False,
+    telegram_first_legout_only_rules: bool = False,
 ) -> DetectionResult:
     d = detect_patterns(
         df, base_count_filter=base_count_filter, proximal_method=proximal_method,
@@ -632,6 +639,7 @@ def run_full_pipeline(
         legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
         legin_must_strictly_exceed_base=legin_must_strictly_exceed_base,
         legout_open_within_legin_range=legout_open_within_legin_range,
+        telegram_first_legout_only_rules=telegram_first_legout_only_rules,
     )
     atr_series = wilder_atr(df, atr_length)
     result = track_zones(
