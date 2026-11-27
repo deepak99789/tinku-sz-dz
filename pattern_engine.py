@@ -499,16 +499,26 @@ def track_zones(
                 round(float(z.proximal), 8),
                 round(float(z.distal), 8),
             )
-            if duplicate_key in seen_zones:
-                continue
-            seen_zones[duplicate_key] = (z.proximal, z.distal)
-            
-            risk = z.distal - z.proximal
-            z.target = z.proximal - risk * rr_target
-            z.trigger_bar = i
-            active.append(z)
-            all_zones.append(z)
-            events.append({"bar": i, "type": "zone_found", "zone": z})
+            existing_zone = seen_zones.get(duplicate_key)
+            if existing_zone is not None:
+                # The same zone can be recognized again as later same-direction
+                # candles extend its Leg-out sequence. Keep the original zone
+                # and update only its count when the pattern anchor is unchanged.
+                if (
+                    existing_zone.base_count == z.base_count
+                    and existing_zone.start_bar == z.start_bar
+                    and z.legout_count > existing_zone.legout_count
+                ):
+                    existing_zone.legout_count = z.legout_count
+                    existing_zone.end_bar = z.end_bar
+            else:
+                seen_zones[duplicate_key] = z
+                risk = z.distal - z.proximal
+                z.target = z.proximal - risk * rr_target
+                z.trigger_bar = i
+                active.append(z)
+                all_zones.append(z)
+                events.append({"bar": i, "type": "zone_found", "zone": z})
 
         demand_signal = bool(d["is_DBR"].iloc[i] or d["is_RBR"].iloc[i])
         if demand_signal and validation_checklist and not _validate_legin_legout(d, i, is_supply=False):
@@ -525,16 +535,25 @@ def track_zones(
                 round(float(z.proximal), 8),
                 round(float(z.distal), 8),
             )
-            if duplicate_key in seen_zones:
-                continue
-            seen_zones[duplicate_key] = (z.proximal, z.distal)
-            
-            risk = z.proximal - z.distal
-            z.target = z.proximal + risk * rr_target
-            z.trigger_bar = i
-            active.append(z)
-            all_zones.append(z)
-            events.append({"bar": i, "type": "zone_found", "zone": z})
+            existing_zone = seen_zones.get(duplicate_key)
+            if existing_zone is not None:
+                # Extend the count on the existing demand zone only when the
+                # base count and original pattern anchor are unchanged.
+                if (
+                    existing_zone.base_count == z.base_count
+                    and existing_zone.start_bar == z.start_bar
+                    and z.legout_count > existing_zone.legout_count
+                ):
+                    existing_zone.legout_count = z.legout_count
+                    existing_zone.end_bar = z.end_bar
+            else:
+                seen_zones[duplicate_key] = z
+                risk = z.proximal - z.distal
+                z.target = z.proximal + risk * rr_target
+                z.trigger_bar = i
+                active.append(z)
+                all_zones.append(z)
+                events.append({"bar": i, "type": "zone_found", "zone": z})
 
         # 2) update every currently active zone
         still_active = []
