@@ -6,8 +6,9 @@ from forex_data import FOREX_TICKERS
 LEGACY_INTERVALS = ["15m", "30m", "60m", "1d", "1wk"]
 INDIA_INTERVALS = LEGACY_INTERVALS + ["75m", "125m", "2h", "4h"]
 US_INTERVALS = LEGACY_INTERVALS + ["75m", "125m", "2h", "4h"]
+# 75m and 125m removed from the Forex scanner to reduce repeated 5m data fetches.
 FOREX_INTERVALS = LEGACY_INTERVALS + [
-    "75m", "125m", "2h", "4h", "6h", "8h", "10h", "12h", "16h"
+    "2h", "4h", "6h", "8h", "10h", "12h", "16h"
 ]
 
 CUSTOM_INTERVAL_MINUTES = {
