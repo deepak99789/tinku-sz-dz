@@ -238,7 +238,7 @@ def main():
 
     for tkr, ticker_frames in iter_symbol_frames(
         TICKERS, INTERVALS, fetch_smart, PERIOD, custom_source_cache,
-        max_workers=2,
+        max_workers=4,
     ):
         for itv in INTERVALS:
             df = ticker_frames[itv]
