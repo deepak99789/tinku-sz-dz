@@ -8,7 +8,7 @@ INDIA_INTERVALS = LEGACY_INTERVALS + ["75m", "125m", "2h", "4h"]
 US_INTERVALS = LEGACY_INTERVALS + ["75m", "125m", "2h", "4h"]
 # 75m and 125m removed from the Forex scanner to reduce repeated 5m data fetches.
 FOREX_INTERVALS = LEGACY_INTERVALS + [
-    "2h", "4h", "6h", "8h", "10h", "12h", "16h"
+    "2h", "4h", "6h", "8h", "16h"
 ]
 
 CUSTOM_INTERVAL_MINUTES = {
