@@ -239,7 +239,7 @@ def main():
                 events = [e for e in events if e["bar"] == last_bar]
 
             # Zone formation stays close-confirmed; touch alerts use the live candle.
-            events = [e for e in events if e["type"] != "entered"]
+            # Closed-bar entry events remain as a fallback if a scan missed the live touch.
             live_events = detect_live_touch_events(result, live_candle, len(df))
             events.extend(live_events)
             alert_df = pd.concat([df, live_candle.to_frame().T])
