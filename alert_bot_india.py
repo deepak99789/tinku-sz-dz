@@ -10,6 +10,8 @@ import datetime as dt
 import logging
 import time
 
+from scanner_fetch import iter_symbol_frames
+
 import pandas as pd
 import yfinance as yf
 
@@ -214,7 +216,7 @@ def fetch_smart(tkr: str, itv: str, requested_period: str, custom_source_cache=N
     idx = PERIOD_LADDER.index(requested_period) if requested_period in PERIOD_LADDER else 0
     for cand in [PERIOD_LADDER[i] for i in range(idx, -1, -1)]:
         try:
-            df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False)
+            df = yf.download(tkr, interval=yf_interval, period=cand, progress=False, auto_adjust=False, threads=False)
         except Exception:
             continue
         if df.empty:
@@ -305,11 +307,14 @@ def main():
 
     custom_source_cache = {}
 
-    for tkr in TICKERS:
+    for tkr, ticker_frames in iter_symbol_frames(
+        TICKERS, INTERVALS, fetch_smart, PERIOD, custom_source_cache,
+        max_workers=4,
+    ):
         for itv in INTERVALS:
             logger.info(f"\n📊 Scanning {tkr} [{itv}]...")
             
-            df = fetch_smart(tkr, itv, PERIOD, custom_source_cache)
+            df = ticker_frames[itv]
             if df.empty:
                 logger.warning(f"❌ {tkr} {itv}: No data")
                 continue
