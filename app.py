@@ -14,6 +14,17 @@ import base64
 import math
 import datetime as dt
 import time
+import sys
+from pathlib import Path
+import importlib
+
+# Always resolve project modules from this app's own repository directory.
+# This prevents Streamlit from importing an unrelated/stale pattern_engine module.
+_APP_DIR = str(Path(__file__).resolve().parent)
+if _APP_DIR in sys.path:
+    sys.path.remove(_APP_DIR)
+sys.path.insert(0, _APP_DIR)
+importlib.invalidate_caches()
 
 try:
     from streamlit_autorefresh import st_autorefresh
@@ -21,6 +32,7 @@ try:
 except ImportError:
     AUTOREFRESH_AVAILABLE = False
 
+# Import the pattern engine only after prioritizing this repository's directory.
 from pattern_engine import run_full_pipeline
 from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
