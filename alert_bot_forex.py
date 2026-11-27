@@ -278,7 +278,8 @@ def main():
                                            legout_body_min=65.0,
                                            legin_must_strictly_exceed_base=True,
                                            legout_open_within_legin_range=True,
-                                           telegram_first_legout_only_rules=True)
+                                           telegram_first_legout_only_rules=True,
+                                           telegram_fast_scan=True)
                 pattern_seconds += time.perf_counter() - pattern_started
                 processed_frames += 1
             except Exception as e:
