@@ -99,8 +99,8 @@ def detect_patterns(
     Detect RBD/DBD/DBR/RBR patterns using closed OHLC candles.
 
     Range-strength filter:
-      * 1 leg-out candle: its High-Low range must be > leg-in range.
-      * 2 leg-out candles: sum of both High-Low ranges must be > leg-in range.
+      * Any number of consecutive leg-out candles is accepted.
+      * Their combined High-Low range must be > leg-in range.
 
     Existing body-percentage filters and base/departure rules remain active.
     When base_range_max_legin=True, the leg-in range must be at least
