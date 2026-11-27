@@ -234,12 +234,25 @@ def detect_patterns(
                 if not base_valid:
                     continue
 
-                # Telegram rule: the first leg-out candle must open inside
-                # the full High-Low range of the leg-in candle (no gap beyond it).
+                # Telegram rule: first leg-out open is pattern-specific.
+                # DBR/RBD: open must remain inside the leg-in High-Low range.
+                # RBR: allow an upside gap of at most one leg-in range.
+                # DBD: allow a downside gap of at most one leg-in range.
                 if legout_open_within_legin_range:
                     first_legout_open = o[first_legout_idx]
-                    if not (l[legin_idx] <= first_legout_open <= h[legin_idx]):
-                        continue
+                    legin_green = c[legin_idx] > o[legin_idx]
+                    if is_demand and not legin_green:  # DBR
+                        if not (l[legin_idx] <= first_legout_open <= h[legin_idx]):
+                            continue
+                    elif (not is_demand) and legin_green:  # RBD
+                        if not (l[legin_idx] <= first_legout_open <= h[legin_idx]):
+                            continue
+                    elif is_demand and legin_green:  # RBR
+                        if not (l[legin_idx] <= first_legout_open <= h[legin_idx] + legin_range):
+                            continue
+                    else:  # DBD
+                        if not (l[legin_idx] - legin_range <= first_legout_open <= h[legin_idx]):
+                            continue
 
                 # Optional Streamlit-only filter: use the base candle whose body
                 # is closest to the proximal boundary, then require the first
@@ -367,8 +380,21 @@ def _validate_legin_legout(d: pd.DataFrame, i: int, is_supply: bool) -> bool:
     if pd.isna(legin_high) or pd.isna(legin_low) or pd.isna(legout_open):
         return False
 
-    # First leg-out candle must open inside the leg-in candle's full range.
-    if not (legin_low <= legout_open <= legin_high):
+    # Keep the optional checklist consistent with the Telegram pattern rules.
+    pattern = str(d["selected_pattern"].iloc[i])
+    legin_range = legin_high - legin_low
+    if legin_range <= 0:
+        return False
+    if pattern in ("DBR", "RBD"):
+        if not (legin_low <= legout_open <= legin_high):
+            return False
+    elif pattern == "RBR":
+        if not (legin_low <= legout_open <= legin_high + legin_range):
+            return False
+    elif pattern == "DBD":
+        if not (legin_low - legin_range <= legout_open <= legin_high):
+            return False
+    else:
         return False
 
     base_body_high = max(base["Open"].max(), base["Close"].max())
