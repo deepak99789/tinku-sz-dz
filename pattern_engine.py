@@ -92,13 +92,15 @@ def detect_patterns(
     legout_to_legin_range_ratio: float = 1.0,
     legout_must_respect_base_distal: bool = False,
     legout_open_beyond_proximal_base_close: bool = False,
+    legin_must_strictly_exceed_base: bool = False,
+    legout_open_within_legin_range: bool = False,
 ) -> pd.DataFrame:
     """
     Detect RBD/DBD/DBR/RBR patterns using closed OHLC candles.
 
     Range-strength filter:
-      * 1 leg-out candle: its High-Low range must be > leg-in range.
-      * 2 leg-out candles: sum of both High-Low ranges must be > leg-in range.
+      * Any number of consecutive leg-out candles is accepted.
+      * Their combined High-Low range must be > leg-in range.
 
     Existing body-percentage filters and base/departure rules remain active.
     When base_range_max_legin=True, the leg-in range must be at least
@@ -162,7 +164,9 @@ def detect_patterns(
             if count not in allowed:
                 continue
 
-            for legout_count in (1, 2):
+            max_legouts = i - count
+            legout_counts = range(1, max_legouts + 1)
+            for legout_count in legout_counts:
                 first_legout_idx = i - legout_count + 1
                 last_base_idx = first_legout_idx - 1
                 first_base_idx = last_base_idx - count + 1
@@ -219,6 +223,9 @@ def detect_patterns(
                     if base_range_max_legin and base_range * max(float(legin_to_base_range_ratio), 0.01) > legin_range:
                         base_valid = False
                         break
+                    if legin_must_strictly_exceed_base and legin_range <= base_range:
+                        base_valid = False
+                        break
                     base_high = max(base_high, h[j])
                     base_low = min(base_low, l[j])
                     body_high = max(body_high, max(o[j], c[j]))
@@ -226,6 +233,13 @@ def detect_patterns(
 
                 if not base_valid:
                     continue
+
+                # Telegram rule: the first leg-out candle must open inside
+                # the full High-Low range of the leg-in candle (no gap beyond it).
+                if legout_open_within_legin_range:
+                    first_legout_open = o[first_legout_idx]
+                    if not (l[legin_idx] <= first_legout_open <= h[legin_idx]):
+                        continue
 
                 # Optional Streamlit-only filter: use the base candle whose body
                 # is closest to the proximal boundary, then require the first
@@ -536,6 +550,29 @@ def track_zones(
     return DetectionResult(df=d, all_zones=all_zones, sl_count=sl_count, tp_count=tp_count, events=events)
 
 
+
+def detect_live_touch_events(result: DetectionResult, live_candle: pd.Series, bar_index: int) -> List[dict]:
+    """Return entry events when the currently-forming candle touches an active zone."""
+    try:
+        high = float(live_candle["High"])
+        low = float(live_candle["Low"])
+    except (KeyError, TypeError, ValueError):
+        return []
+
+    if not np.isfinite([high, low]).all() or high < low:
+        return []
+
+    events = []
+    for zone in result.all_zones:
+        if zone.status != "active" or zone.activated or bar_index <= zone.trigger_bar:
+            continue
+        touched = low <= zone.proximal <= high
+        if touched:
+            zone.activated = True
+            events.append({"bar": bar_index, "type": "entered", "zone": zone})
+    return events
+
+
 def run_full_pipeline(
     df: pd.DataFrame,
     atr_length: int = 14,
@@ -554,6 +591,8 @@ def run_full_pipeline(
     legout_body_min: float = 65.0,
     legout_must_respect_base_distal: bool = False,
     legout_open_beyond_proximal_base_close: bool = False,
+    legin_must_strictly_exceed_base: bool = False,
+    legout_open_within_legin_range: bool = False,
 ) -> DetectionResult:
     d = detect_patterns(
         df, base_count_filter=base_count_filter, proximal_method=proximal_method,
@@ -565,6 +604,8 @@ def run_full_pipeline(
         legout_body_min=legout_body_min,
         legout_must_respect_base_distal=legout_must_respect_base_distal,
         legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
+        legin_must_strictly_exceed_base=legin_must_strictly_exceed_base,
+        legout_open_within_legin_range=legout_open_within_legin_range,
     )
     atr_series = wilder_atr(df, atr_length)
     result = track_zones(

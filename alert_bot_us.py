@@ -13,7 +13,7 @@ import time
 import pandas as pd
 import yfinance as yf
 
-from pattern_engine import run_full_pipeline
+from pattern_engine import run_full_pipeline, detect_live_touch_events
 from telegram_utils import send_telegram_message, send_telegram_photo
 from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
 from daily_reporting import ReportLedger
@@ -209,10 +209,12 @@ def main():
                 continue
             
             try:
-                # Yahoo Finance may return the currently-forming candle as the last row.
-                # Exclude it: a zone/alert is valid only after that candle has closed.
-                if len(df) > 1:
-                    df = df.iloc[:-1].copy()
+                # Keep the live candle separate: closed candles may create zones,
+                # while a live candle can trigger an immediate zone-touch alert.
+                if len(df) < 2:
+                    continue
+                live_candle = df.iloc[-1].copy()
+                df = df.iloc[:-1].copy()
 
                 result = run_full_pipeline(df, atr_length=ATR_LENGTH, atr_multiplier=ATR_MULTIPLIER,
                                            rr_target=RR_TARGET, pre_entry_mult=PRE_ENTRY_MULT,
@@ -220,7 +222,9 @@ def main():
                                            max_base_count=MAX_BASE_COUNT,
                                            proximal_method=PROXIMAL_METHOD,
                                            base_range_max_legin=True,
-                                           legout_must_respect_base_distal=True)
+                                           legout_must_respect_base_distal=True,
+                                           legin_must_strictly_exceed_base=True,
+                                           legout_open_within_legin_range=True)
             except Exception as e:
                 logger.error(f"❌ Error: {e}")
                 continue
@@ -233,6 +237,12 @@ def main():
             if ONLY_LATEST_BAR:
                 last_bar = len(df) - 1
                 events = [e for e in events if e["bar"] == last_bar]
+
+            # Zone formation stays close-confirmed; touch alerts use the live candle.
+            # Closed-bar entry events remain as a fallback if a scan missed the live touch.
+            live_events = detect_live_touch_events(result, live_candle, len(df))
+            events.extend(live_events)
+            alert_df = pd.concat([df, live_candle.to_frame().T])
             
             for e in events:
                 if is_duplicate_in_run(tkr, itv, e):
@@ -250,11 +260,11 @@ def main():
                     
                 sent_keys.add(key)
                 last_alert_time[key] = time.time()
-                txt = build_alert_text(tkr, itv, e, df, RR_TARGET)
-                chart_bytes = render_zone_chart(df, e, tkr, itv)
+                txt = build_alert_text(tkr, itv, e, alert_df, RR_TARGET)
+                chart_bytes = render_zone_chart(alert_df, e, tkr, itv)
                 pending_alerts.append({
                     "ticker": tkr, "interval": itv, "type": e["type"],
-                    "text": txt, "chart_bytes": chart_bytes, "key": key, "event": e, "df": df
+                    "text": txt, "chart_bytes": chart_bytes, "key": key, "event": e, "df": alert_df
                 })
 
     for i in range(0, len(pending_alerts), BATCH_SIZE):
