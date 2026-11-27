@@ -224,7 +224,8 @@ def main():
                                            base_range_max_legin=True,
                                            legout_must_respect_base_distal=True,
                                            legin_must_strictly_exceed_base=True,
-                                           legout_open_within_legin_range=True)
+                                           legout_open_within_legin_range=True,
+                                           telegram_first_legout_only_rules=True)
             except Exception as e:
                 logger.error(f"❌ Error: {e}")
                 continue
