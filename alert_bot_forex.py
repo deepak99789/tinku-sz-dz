@@ -144,6 +144,14 @@ def fetch_smart(tkr: str, itv: str, requested_period: str, custom_source_cache=N
     return pd.DataFrame()
 
 
+def timed_fetch_smart(tkr: str, itv: str, requested_period: str, custom_source_cache=None) -> pd.DataFrame:
+    started = time.perf_counter()
+    try:
+        return fetch_smart(tkr, itv, requested_period, custom_source_cache)
+    finally:
+        logger.info("⏱️ FETCH TIMING: %s %s %.2fs", tkr, itv, time.perf_counter() - started)
+
+
 def load_state() -> set:
     if os.path.exists(STATE_FILE):
         try:
@@ -212,6 +220,9 @@ def is_duplicate_with_tolerance(tkr: str, itv: str, event: dict, sent_keys: set)
 def main():
     global RUN_CACHE
     RUN_CACHE = set()
+    scan_started = time.perf_counter()
+    pattern_seconds = 0.0
+    processed_frames = 0
     
     logger.info("=" * 60)
     logger.info("💱 FOREX + COMMODITY + CRYPTO + INDICES SCANNER STARTED (REAL DATA)")
@@ -237,7 +248,7 @@ def main():
     custom_source_cache = {}
 
     for tkr, ticker_frames in iter_symbol_frames(
-        TICKERS, INTERVALS, fetch_smart, PERIOD, custom_source_cache,
+        TICKERS, INTERVALS, timed_fetch_smart, PERIOD, custom_source_cache,
         max_workers=4,
     ):
         for itv in INTERVALS:
@@ -253,6 +264,7 @@ def main():
                 live_candle = df.iloc[-1].copy()
                 df = df.iloc[:-1].copy()
 
+                pattern_started = time.perf_counter()
                 result = run_full_pipeline(df, atr_length=ATR_LENGTH, atr_multiplier=ATR_MULTIPLIER,
                                            rr_target=RR_TARGET, pre_entry_mult=PRE_ENTRY_MULT,
                                            base_count_filter=BASE_COUNT_FILTER,
@@ -267,6 +279,8 @@ def main():
                                            legin_must_strictly_exceed_base=True,
                                            legout_open_within_legin_range=True,
                                            telegram_first_legout_only_rules=True)
+                pattern_seconds += time.perf_counter() - pattern_started
+                processed_frames += 1
             except Exception as e:
                 logger.error(f"❌ Error: {e}")
                 continue
@@ -327,8 +341,12 @@ def main():
             time.sleep(3)
 
     # 🔥 Force save state
+    state_started = time.perf_counter()
     save_state(sent_keys)
     report_ledger.save()
+    state_seconds = time.perf_counter() - state_started
+    logger.info("⏱️ SCAN TIMING: frames=%d pattern_pipeline=%.2fs state_save=%.2fs total=%.2fs",
+                processed_frames, pattern_seconds, state_seconds, time.perf_counter() - scan_started)
     
     logger.info("📊 FOREX + COMMODITY + CRYPTO + INDICES SCAN COMPLETE (REAL DATA)")
     logger.info(f"  • Symbols: {len(TICKERS)}")
