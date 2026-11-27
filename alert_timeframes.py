@@ -3,15 +3,15 @@ import pandas as pd
 
 from forex_data import FOREX_TICKERS
 
-LEGACY_INTERVALS = ["5m", "15m", "30m", "60m", "90m", "1d", "5d", "1wk", "1mo", "3mo"]
+LEGACY_INTERVALS = ["15m", "30m", "60m", "1d", "1wk"]
 INDIA_INTERVALS = LEGACY_INTERVALS + ["75m", "125m", "2h"]
 US_INTERVALS = LEGACY_INTERVALS + ["75m", "125m", "2h"]
 FOREX_INTERVALS = LEGACY_INTERVALS + [
-    "10m", "75m", "125m", "2h", "4h", "6h", "8h", "10h", "12h", "16h"
+    "75m", "125m", "2h", "4h", "6h", "8h", "10h", "12h", "16h"
 ]
 
 CUSTOM_INTERVAL_MINUTES = {
-    "10m": 10, "75m": 75, "125m": 125,
+    "75m": 75, "125m": 125,
     "2h": 120, "4h": 240, "6h": 360, "8h": 480,
     "10h": 600, "12h": 720, "16h": 960,
 }
