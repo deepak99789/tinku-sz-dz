@@ -351,9 +351,8 @@ def main():
                 if events:
                     logger.info(f"  📌 Filtered to latest bar: {len(events)} events")
 
-            # Existing zones are checked against the still-forming candle.
-            # Historical entry events are suppressed; touch alerts come from live OHLC.
-            events = [e for e in events if e["type"] != "entered"]
+            # Existing active zones are checked against the still-forming candle.
+            # Closed-bar entry events remain as a fallback if a scan missed the live touch.
             live_events = detect_live_touch_events(result, live_candle, len(df))
             events.extend(live_events)
             alert_df = pd.concat([df, live_candle.to_frame().T])
