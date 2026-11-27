@@ -450,9 +450,30 @@ with settings_box:
         )
     with ratio_c2:
         legout_to_legin_range_ratio = st.number_input(
-            "Leg-out Range / Leg-in Range Multiplier", min_value=1.0, max_value=5.0,
+            "Leg-out Range / Leg-in Range Multiplier", min_value=0.1, max_value=10.0,
             value=1.0, step=0.1,
-            help="1-legout range OR combined 2-legout range must be greater than this multiple of Leg-in range."
+            help="First/combined Leg-out range threshold as a multiple of Leg-in range. Use + / - to adjust."
+        )
+
+    st.markdown("**🧩 Advanced Zone Validation Checklist**")
+    validation_c1, validation_c2, validation_c3 = st.columns(3)
+    with validation_c1:
+        legin_must_strictly_exceed_base = st.checkbox(
+            "Leg-in range must be strictly greater than Base",
+            value=False,
+            help="ON: Leg-in ka High-Low range har Base candle se strictly bada hona chahiye."
+        )
+    with validation_c2:
+        legout_must_respect_base_distal = st.checkbox(
+            "Leg-out wick must respect Base distal",
+            value=False,
+            help="ON: Demand mein Leg-out Low Base Low se neeche nahi; Supply mein Leg-out High Base High se upar nahi."
+        )
+    with validation_c3:
+        legout_open_within_legin_range = st.checkbox(
+            "Pattern-specific First Leg-out Open rule",
+            value=False,
+            help="ON: DBR/RBD open Leg-in range ke andar; RBR/DBD mein allowed gap maximum ek Leg-in range."
         )
 
     row2b_c1, row2b_c2 = st.columns([1.6, 3])
@@ -846,6 +867,9 @@ if trigger_scan:
                 base_body_max=base_body_max,
                 legout_body_min=legout_body_min,
                 legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
+                legin_must_strictly_exceed_base=legin_must_strictly_exceed_base,
+                legout_must_respect_base_distal=legout_must_respect_base_distal,
+                legout_open_within_legin_range=legout_open_within_legin_range,
             )
             combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
 
