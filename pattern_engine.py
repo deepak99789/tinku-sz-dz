@@ -477,7 +477,7 @@ def track_zones(
     lows = d["Low"].values
 
     # 🔥 STRONG DUPLICATE DETECTION - 0.5 tolerance
-    seen_zones = {}  # key -> (proximal, distal)
+    seen_zones = {}  # duplicate key -> original Zone instance
 
     for i in range(n):
         atr_buffer = atr_series.iloc[i] * atr_multiplier if not np.isnan(atr_series.iloc[i]) else 0.0
