@@ -45,14 +45,14 @@ st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 # Custom intraday intervals are built from real 5-minute OHLC candles.
 # ==========================================================================
 # Keep every legacy dashboard timeframe and ADD the requested market-specific intervals.
-LEGACY_INTERVAL_OPTIONS = ["5m", "15m", "30m", "60m", "90m", "1d", "5d", "1wk", "1mo", "3mo"]
+LEGACY_INTERVAL_OPTIONS = ["15m", "30m", "60m", "1d", "1wk", "1mo", "3mo"]
 INDIA_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["75m", "125m", "2h", "4h"]
 US_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["75m", "125m", "2h", "4h"]
 FOREX_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["10m", "75m", "125m", "2h", "4h", "6h", "8h", "10h", "12h", "16h"]
 
 INTERVAL_OPTIONS = [
-    "5m", "15m", "30m", "60m", "90m",
-    "1d", "5d", "1wk", "1mo", "3mo"
+    "15m", "30m", "60m",
+    "1d", "1wk", "1mo", "3mo"
 ]
 
 CUSTOM_INTERVAL_MINUTES = {
