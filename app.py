@@ -882,11 +882,6 @@ def fetch_data_smart(tkr: str, itv: str, requested_period: str):
     return pd.DataFrame(), None
 
 
-def _run_scan_pipeline(df: pd.DataFrame, pipeline_kwargs: dict):
-    """Run one independent ticker/timeframe zone pipeline in a worker thread."""
-    return run_full_pipeline(df, **pipeline_kwargs)
-
-
 # ==========================================================================
 # RUN SCAN
 # ==========================================================================
@@ -909,13 +904,11 @@ if trigger_scan:
     downgraded = []
     scan_jobs = [(tkr, itv) for tkr in final_tickers for itv in final_intervals]
     total_combos = len(scan_jobs)
-    progress = st.progress(0, text="Fetching market data...")
+    progress = st.progress(0, text="Fetching & scanning...")
     done = 0
-    pipeline_futures = {}
 
-    # Keep network fetching and CPU/dataframe-based zone detection in separate
-    # bounded pools. This lets detection start while remaining symbols fetch,
-    # without changing the detection rules or alert/report code.
+    # Fetch data concurrently, but run zone detection one combo at a time
+    # to keep peak memory usage low on Streamlit Community Cloud.
     pipeline_kwargs = {
         "atr_length": atr_length,
         "atr_multiplier": atr_multiplier,
@@ -935,18 +928,18 @@ if trigger_scan:
         "candle_behind_legin": candle_behind_legin,
     }
 
-    with ThreadPoolExecutor(max_workers=6) as fetch_executor, ThreadPoolExecutor(max_workers=6) as detect_executor:
-        fetch_futures = {
-            fetch_executor.submit(fetch_data_smart, tkr, itv, period): (tkr, itv)
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        future_to_combo = {
+            executor.submit(fetch_data_smart, tkr, itv, period): (tkr, itv)
             for tkr, itv in scan_jobs
         }
 
-        for future in as_completed(fetch_futures):
-            tkr, itv = fetch_futures[future]
+        for future in as_completed(future_to_combo):
+            tkr, itv = future_to_combo[future]
             done += 1
             progress.progress(
                 done / total_combos,
-                text=f"Fetched {done}/{total_combos}: {tkr} ({itv}) — queueing zone detection..."
+                text=f"Fetched {done}/{total_combos}: {tkr} ({itv}) — detecting zones..."
             )
             try:
                 df, period_used = future.result()
@@ -959,27 +952,19 @@ if trigger_scan:
             if period_used != period:
                 downgraded.append(f"{tkr} [{itv}] → {period_used}")
 
-            # Ignore the currently-forming candle, matching the existing scan behavior.
+            # Exclude the currently-forming candle, preserving existing scan behavior.
             if len(df) > 1:
                 df = df.iloc[:-1].copy()
 
-            pipeline_future = detect_executor.submit(_run_scan_pipeline, df, pipeline_kwargs)
-            pipeline_futures[pipeline_future] = (tkr, itv, df, period_used)
-
-        detected = 0
-        for future in as_completed(pipeline_futures):
-            tkr, itv, df, period_used = pipeline_futures[future]
             try:
-                result = future.result()
+                result = run_full_pipeline(df, **pipeline_kwargs)
             except Exception as exc:
                 skipped.append(f"{tkr} [{itv}] — detection error: {type(exc).__name__}")
                 continue
-            combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
-            detected += 1
-            progress.progress(
-                1.0 if not pipeline_futures else detected / len(pipeline_futures),
-                text=f"Detecting zones: {detected}/{len(pipeline_futures)} completed..."
-            )
+
+            combo_results[(tkr, itv)] = {
+                "df": df, "result": result, "period_used": period_used
+            }
 
     progress.empty()
 
