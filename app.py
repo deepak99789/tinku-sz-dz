@@ -983,8 +983,6 @@ if trigger_scan:
 
     progress.empty()
 
-    progress.empty()
-
     if not combo_results:
         st.error("Kisi bhi ticker/interval combination me data nahi mila.")
         st.stop()
