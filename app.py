@@ -4,9 +4,6 @@ app.py - Demand & Supply Dashboard (Streamlit port)
 
 import streamlit as st
 import pandas as pd
-import numpy as np
-import yfinance as yf
-import plotly.graph_objects as go
 import io
 import wave
 import struct
@@ -22,10 +19,15 @@ try:
 except ImportError:
     AUTOREFRESH_AVAILABLE = False
 
-from pattern_engine import run_full_pipeline
-from telegram_utils import send_telegram_message, send_telegram_photo
-from alert_common import alert_key, build_alert_text, render_zone_chart, ALERT_ICONS
-from forex_data import FOREX_TICKERS, fetch_forex_data
+# Keep the dashboard startup lightweight: scanner, chart and Telegram modules
+# are imported only when the user actually starts a scan or opens/sends a chart.
+FOREX_TICKERS = [
+    "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X", "NZDUSD=X",
+    "EURGBP=X", "EURJPY=X", "EURCHF=X", "EURCAD=X", "EURAUD=X", "EURNZD=X",
+    "GBPJPY=X", "GBPCHF=X", "GBPCAD=X", "GBPAUD=X", "GBPNZD=X",
+    "AUDJPY=X", "CADJPY=X", "CHFJPY=X", "NZDJPY=X",
+    "AUDCAD=X", "AUDCHF=X", "AUDNZD=X", "CADCHF=X", "NZDCAD=X", "NZDCHF=X",
+]
 
 st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 
@@ -555,6 +557,7 @@ def zone_display_status(z) -> str:
 @st.dialog("Zone Chart Preview", width="large")
 def show_zone_popup(df: pd.DataFrame, z, ticker: str, interval: str, rr_target: float):
     """Show one selected zone with surrounding candles and pattern components."""
+    import plotly.graph_objects as go
     if df.empty:
         st.warning("Is zone ke liye chart data available nahi hai.")
         return
@@ -856,8 +859,10 @@ def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
         return _resample_custom_timeframe(base_df, tkr, itv)
 
     if tkr in FOREX_TICKERS:
+        from forex_data import fetch_forex_data
         return fetch_forex_data(tkr, itv, per)
 
+    import yfinance as yf
     yf_itv = YF_INTERVAL_MAP_APP.get(itv, itv)
     try:
         df = yf.download(tkr, interval=yf_itv, period=per, progress=False,
@@ -957,6 +962,7 @@ if trigger_scan:
                 df = df.iloc[:-1].copy()
 
             try:
+                from pattern_engine import run_full_pipeline
                 result = run_full_pipeline(df, **pipeline_kwargs)
             except Exception as exc:
                 skipped.append(f"{tkr} [{itv}] — detection error: {type(exc).__name__}")
@@ -993,6 +999,7 @@ if trigger_scan:
     st.session_state["scan_legout_legin_ratio"] = legout_to_legin_range_ratio
     st.session_state["last_scan_time"] = dt.datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
+    from alert_common import alert_key, build_alert_text, ALERT_ICONS
     collected = []
     for (tkr, itv), data in combo_results.items():
         result = data["result"]
@@ -1057,6 +1064,8 @@ if trigger_scan:
                 st.info(f"⏱️ Rate limit: Waiting 2 seconds... ({sent_count} messages sent)")
                 time.sleep(2)
             
+            from alert_common import render_zone_chart
+            from telegram_utils import send_telegram_message, send_telegram_photo
             chart_bytes = render_zone_chart(c["df"], c["event"], c["ticker"], c["interval"])
             if chart_bytes:
                 ok, msg = send_telegram_photo(bot_token, chat_id, chart_bytes, caption=c["text"])
