@@ -17,6 +17,7 @@ import time
 import sys
 from pathlib import Path
 import importlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Always resolve project modules from this app's own repository directory.
 # This prevents Streamlit from importing an unrelated/stale pattern_engine module.
@@ -786,11 +787,17 @@ def _resample_custom_timeframe(df: pd.DataFrame, ticker: str, interval: str) -> 
 
 
 @st.cache_data(ttl=300, show_spinner=False)
+def _fetch_forex_base_5m(tkr: str, per: str) -> pd.DataFrame:
+    """Fetch each Forex pair 5m source once, then reuse it for custom intervals."""
+    return fetch_forex_data(tkr, "5m", per)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
 def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
     if itv in CUSTOM_INTERVAL_MINUTES:
         # Build custom candles from the same 5-minute feeds already used by this dashboard.
         if tkr in FOREX_TICKERS:
-            base_df = fetch_forex_data(tkr, "5m", per)
+            base_df = _fetch_forex_base_5m(tkr, per)
         else:
             try:
                 base_df = yf.download(
@@ -853,47 +860,64 @@ if trigger_scan:
     skipped = []
     downgraded = []
     total_combos = len(final_tickers) * len(final_intervals)
-    progress = st.progress(0, text="Fetching & scanning...")
-    done = 0
+    progress = st.progress(0, text="Fetching market data (6 parallel workers)...")
 
-    for tkr in final_tickers:
-        for itv in final_intervals:
-            done += 1
-            progress.progress(done / total_combos, text=f"Fetching {tkr} ({itv})...")
-            df, period_used = fetch_data_smart(tkr, itv, period)
-            if df.empty:
-                skipped.append(f"{tkr} [{itv}]")
-                continue
-            if period_used != period:
-                downgraded.append(f"{tkr} [{itv}] → {period_used}")
-            # Yahoo Finance may return the currently-forming candle as the last row.
-            # Exclude it: a zone/alert is valid only after that candle has closed.
-            if len(df) > 1:
-                df = df.iloc[:-1].copy()
-
-            result = run_full_pipeline(
-                df,
-                atr_length=atr_length,
-                atr_multiplier=atr_multiplier,
-                rr_target=rr_target,
-                pre_entry_mult=pre_entry_mult,
-                base_count_filter=base_count_filter,
-                validation_checklist=validation_checklist_on,
-                proximal_method=proximal_method,
-                max_base_count=max_base_count,
-                base_range_max_legin=legin_base_range_filter,
-                legin_to_base_range_ratio=legin_to_base_range_ratio,
-                legout_to_legin_range_ratio=legout_to_legin_range_ratio,
-                legin_body_min=legin_body_min,
-                base_body_max=base_body_max,
-                legout_body_min=legout_body_min,
-                legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
-                legin_must_strictly_exceed_base=legin_must_strictly_exceed_base,
-                legout_must_respect_base_distal=legout_must_respect_base_distal,
-                legout_open_within_legin_range=legout_open_within_legin_range,
-                candle_behind_legin=candle_behind_legin,
+    # Network fetching is the slow part. Fetch a small bounded batch concurrently,
+    # then run the existing zone detector sequentially to avoid a memory spike.
+    fetched = {}
+    fetch_jobs = [(tkr, itv) for tkr in final_tickers for itv in final_intervals]
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        future_map = {
+            executor.submit(fetch_data_smart, tkr, itv, period): (tkr, itv)
+            for tkr, itv in fetch_jobs
+        }
+        for done, future in enumerate(as_completed(future_map), start=1):
+            tkr, itv = future_map[future]
+            try:
+                fetched[(tkr, itv)] = future.result()
+            except Exception:
+                fetched[(tkr, itv)] = (pd.DataFrame(), None)
+            progress.progress(
+                done / total_combos,
+                text=f"Fetched {done}/{total_combos}: {tkr} ({itv})"
             )
-            combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
+
+    # Keep detection order and all existing scanner parameters unchanged.
+    for tkr, itv in fetch_jobs:
+        df, period_used = fetched[(tkr, itv)]
+        if df.empty:
+            skipped.append(f"{tkr} [{itv}]")
+            continue
+        if period_used != period:
+            downgraded.append(f"{tkr} [{itv}] → {period_used}")
+        # Yahoo Finance may return the currently-forming candle as the last row.
+        # Exclude it: a zone/alert is valid only after that candle has closed.
+        if len(df) > 1:
+            df = df.iloc[:-1].copy()
+
+        result = run_full_pipeline(
+            df,
+            atr_length=atr_length,
+            atr_multiplier=atr_multiplier,
+            rr_target=rr_target,
+            pre_entry_mult=pre_entry_mult,
+            base_count_filter=base_count_filter,
+            validation_checklist=validation_checklist_on,
+            proximal_method=proximal_method,
+            max_base_count=max_base_count,
+            base_range_max_legin=legin_base_range_filter,
+            legin_to_base_range_ratio=legin_to_base_range_ratio,
+            legout_to_legin_range_ratio=legout_to_legin_range_ratio,
+            legin_body_min=legin_body_min,
+            base_body_max=base_body_max,
+            legout_body_min=legout_body_min,
+            legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
+            legin_must_strictly_exceed_base=legin_must_strictly_exceed_base,
+            legout_must_respect_base_distal=legout_must_respect_base_distal,
+            legout_open_within_legin_range=legout_open_within_legin_range,
+            candle_behind_legin=candle_behind_legin,
+        )
+        combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
 
     progress.empty()
 
