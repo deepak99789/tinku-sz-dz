@@ -2,7 +2,7 @@ name: Zone Scanner - Forex + Commodity + Crypto
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "3-58/5 * * * *"
   workflow_dispatch: {}
 
 permissions:
