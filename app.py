@@ -413,6 +413,15 @@ with settings_box:
     with row2c_c2:
         proximal_method = st.selectbox("Zone Boundary", ["Wick to Wick", "Wick to Body"], index=0)
 
+    candle_behind_legin = st.checkbox(
+        "Candle Behind Leg-in (Max 50% Overlap)", value=False,
+        help=(
+            "ON: Leg-in se turant pehle wali candle ka High-Low range, "
+            "Leg-in candle ki High-Low range ka 50% se zyada overlap nahi kar sakta. "
+            "Exactly 50% allowed. Ye RBR, DBR, RBD aur DBD sab par lagega."
+        ),
+    )
+
     legout_open_beyond_proximal_base_close = st.checkbox(
         "Leg-out Open Beyond Proximal Base Candle Close", value=False,
         help=(
@@ -867,6 +876,7 @@ if trigger_scan:
                 base_body_max=base_body_max,
                 legout_body_min=legout_body_min,
                 legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
+                candle_behind_legin=candle_behind_legin,
             )
             combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
 
