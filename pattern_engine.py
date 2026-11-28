@@ -92,6 +92,7 @@ def detect_patterns(
     legout_to_legin_range_ratio: float = 1.0,
     legout_must_respect_base_distal: bool = False,
     legout_open_beyond_proximal_base_close: bool = False,
+    candle_behind_legin: bool = False,
 ) -> pd.DataFrame:
     """
     Detect RBD/DBD/DBR/RBR patterns using closed OHLC candles.
@@ -197,6 +198,20 @@ def detect_patterns(
                 legin_range = h[legin_idx] - l[legin_idx]
                 if legin_range <= 0:
                     continue
+                # Optional Candle Behind Leg-in filter: the immediately
+                # preceding candle may overlap at most 50% of the Leg-in
+                # candle High-Low range. Exactly 50% remains valid.
+                if candle_behind_legin:
+                    previous_idx = legin_idx - 1
+                    if previous_idx < 0:
+                        continue
+                    overlap = max(
+                        0.0,
+                        min(h[previous_idx], h[legin_idx])
+                        - max(l[previous_idx], l[legin_idx]),
+                    )
+                    if overlap > legin_range * 0.5:
+                        continue
                 legin_pct = body_pct(legin_idx)
                 if legin_pct < legin_body_min:
                     continue
@@ -554,6 +569,7 @@ def run_full_pipeline(
     legout_body_min: float = 65.0,
     legout_must_respect_base_distal: bool = False,
     legout_open_beyond_proximal_base_close: bool = False,
+    candle_behind_legin: bool = False,
 ) -> DetectionResult:
     d = detect_patterns(
         df, base_count_filter=base_count_filter, proximal_method=proximal_method,
@@ -565,6 +581,7 @@ def run_full_pipeline(
         legout_body_min=legout_body_min,
         legout_must_respect_base_distal=legout_must_respect_base_distal,
         legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
+        candle_behind_legin=candle_behind_legin,
     )
     atr_series = wilder_atr(df, atr_length)
     result = track_zones(
