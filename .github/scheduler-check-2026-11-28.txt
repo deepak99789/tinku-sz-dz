@@ -1,0 +1,2 @@
+Harmless repository activity check for GitHub Actions scheduled workflow monitoring.
+No workflow, scanner, alert, or reporting logic is changed.
