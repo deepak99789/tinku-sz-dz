@@ -14,6 +14,7 @@ import base64
 import math
 import datetime as dt
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
     from streamlit_autorefresh import st_autorefresh
@@ -813,20 +814,37 @@ if trigger_scan:
     combo_results = {}
     skipped = []
     downgraded = []
-    total_combos = len(final_tickers) * len(final_intervals)
+    scan_jobs = [(tkr, itv) for tkr in final_tickers for itv in final_intervals]
+    total_combos = len(scan_jobs)
     progress = st.progress(0, text="Fetching & scanning...")
     done = 0
 
-    for tkr in final_tickers:
-        for itv in final_intervals:
+    # Fetch market data concurrently with a conservative worker limit.
+    # Pattern detection remains unchanged and runs on the Streamlit thread.
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        future_to_combo = {
+            executor.submit(fetch_data_smart, tkr, itv, period): (tkr, itv)
+            for tkr, itv in scan_jobs
+        }
+
+        for future in as_completed(future_to_combo):
+            tkr, itv = future_to_combo[future]
             done += 1
-            progress.progress(done / total_combos, text=f"Fetching {tkr} ({itv})...")
-            df, period_used = fetch_data_smart(tkr, itv, period)
+            progress.progress(
+                done / total_combos,
+                text=f"Fetched {done}/{total_combos}: {tkr} ({itv}) — detecting zones..."
+            )
+            try:
+                df, period_used = future.result()
+            except Exception:
+                df, period_used = pd.DataFrame(), None
+
             if df.empty:
                 skipped.append(f"{tkr} [{itv}]")
                 continue
             if period_used != period:
                 downgraded.append(f"{tkr} [{itv}] → {period_used}")
+
             # Yahoo Finance may return the currently-forming candle as the last row.
             # Exclude it: a zone/alert is valid only after that candle has closed.
             if len(df) > 1:
