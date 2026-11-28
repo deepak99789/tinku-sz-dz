@@ -46,8 +46,8 @@ st.set_page_config(page_title="Demand & Supply Dashboard", layout="wide")
 # ==========================================================================
 # Keep every legacy dashboard timeframe and ADD the requested market-specific intervals.
 LEGACY_INTERVAL_OPTIONS = ["5m", "15m", "30m", "60m", "90m", "1d", "5d", "1wk", "1mo", "3mo"]
-INDIA_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["75m", "125m", "2h"]
-US_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["75m", "125m", "2h"]
+INDIA_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["75m", "125m", "2h", "4h"]
+US_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["75m", "125m", "2h", "4h"]
 FOREX_INTERVAL_OPTIONS = LEGACY_INTERVAL_OPTIONS + ["10m", "75m", "125m", "2h", "4h", "6h", "8h", "10h", "12h", "16h"]
 
 INTERVAL_OPTIONS = [
@@ -421,6 +421,15 @@ with settings_box:
         max_base_count = st.selectbox("Max Base Candles", [1, 2, 3], index=2)
     with row2c_c2:
         proximal_method = st.selectbox("Zone Boundary", ["Wick to Wick", "Wick to Body"], index=0)
+
+    candle_behind_legin = st.checkbox(
+        "Candle Behind Leg-in (Max 50% Overlap)", value=False,
+        help=(
+            "ON: Leg-in se turant pehle wali candle ka High-Low range, "
+            "Leg-in candle ki High-Low range ka 50% se zyada overlap nahi kar sakta. "
+            "Exactly 50% allowed. Ye RBR, DBR, RBD aur DBD sab par lagega."
+        ),
+    )
 
     legout_open_beyond_proximal_base_close = st.checkbox(
         "Leg-out Open Beyond Proximal Base Candle Close", value=False,
@@ -882,6 +891,7 @@ if trigger_scan:
                 legin_must_strictly_exceed_base=legin_must_strictly_exceed_base,
                 legout_must_respect_base_distal=legout_must_respect_base_distal,
                 legout_open_within_legin_range=legout_open_within_legin_range,
+                candle_behind_legin=candle_behind_legin,
             )
             combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
 
