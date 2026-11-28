@@ -882,6 +882,11 @@ def fetch_data_smart(tkr: str, itv: str, requested_period: str):
     return pd.DataFrame(), None
 
 
+def _run_scan_pipeline(df: pd.DataFrame, pipeline_kwargs: dict):
+    """Run one independent ticker/timeframe zone pipeline in a worker thread."""
+    return run_full_pipeline(df, **pipeline_kwargs)
+
+
 # ==========================================================================
 # RUN SCAN
 # ==========================================================================
@@ -904,23 +909,44 @@ if trigger_scan:
     downgraded = []
     scan_jobs = [(tkr, itv) for tkr in final_tickers for itv in final_intervals]
     total_combos = len(scan_jobs)
-    progress = st.progress(0, text="Fetching & scanning...")
+    progress = st.progress(0, text="Fetching market data...")
     done = 0
+    pipeline_futures = {}
 
-    # Fetch market data concurrently with a conservative worker limit.
-    # Pattern detection remains unchanged and runs on the Streamlit thread.
-    with ThreadPoolExecutor(max_workers=6) as executor:
-        future_to_combo = {
-            executor.submit(fetch_data_smart, tkr, itv, period): (tkr, itv)
+    # Keep network fetching and CPU/dataframe-based zone detection in separate
+    # bounded pools. This lets detection start while remaining symbols fetch,
+    # without changing the detection rules or alert/report code.
+    pipeline_kwargs = {
+        "atr_length": atr_length,
+        "atr_multiplier": atr_multiplier,
+        "rr_target": rr_target,
+        "pre_entry_mult": pre_entry_mult,
+        "base_count_filter": base_count_filter,
+        "validation_checklist": validation_checklist_on,
+        "proximal_method": proximal_method,
+        "max_base_count": max_base_count,
+        "base_range_max_legin": legin_base_range_filter,
+        "legin_to_base_range_ratio": legin_to_base_range_ratio,
+        "legout_to_legin_range_ratio": legout_to_legin_range_ratio,
+        "legin_body_min": legin_body_min,
+        "base_body_max": base_body_max,
+        "legout_body_min": legout_body_min,
+        "legout_open_beyond_proximal_base_close": legout_open_beyond_proximal_base_close,
+        "candle_behind_legin": candle_behind_legin,
+    }
+
+    with ThreadPoolExecutor(max_workers=6) as fetch_executor, ThreadPoolExecutor(max_workers=6) as detect_executor:
+        fetch_futures = {
+            fetch_executor.submit(fetch_data_smart, tkr, itv, period): (tkr, itv)
             for tkr, itv in scan_jobs
         }
 
-        for future in as_completed(future_to_combo):
-            tkr, itv = future_to_combo[future]
+        for future in as_completed(fetch_futures):
+            tkr, itv = fetch_futures[future]
             done += 1
             progress.progress(
                 done / total_combos,
-                text=f"Fetched {done}/{total_combos}: {tkr} ({itv}) — detecting zones..."
+                text=f"Fetched {done}/{total_combos}: {tkr} ({itv}) — queueing zone detection..."
             )
             try:
                 df, period_used = future.result()
@@ -933,31 +959,29 @@ if trigger_scan:
             if period_used != period:
                 downgraded.append(f"{tkr} [{itv}] → {period_used}")
 
-            # Yahoo Finance may return the currently-forming candle as the last row.
-            # Exclude it: a zone/alert is valid only after that candle has closed.
+            # Ignore the currently-forming candle, matching the existing scan behavior.
             if len(df) > 1:
                 df = df.iloc[:-1].copy()
 
-            result = run_full_pipeline(
-                df,
-                atr_length=atr_length,
-                atr_multiplier=atr_multiplier,
-                rr_target=rr_target,
-                pre_entry_mult=pre_entry_mult,
-                base_count_filter=base_count_filter,
-                validation_checklist=validation_checklist_on,
-                proximal_method=proximal_method,
-                max_base_count=max_base_count,
-                base_range_max_legin=legin_base_range_filter,
-                legin_to_base_range_ratio=legin_to_base_range_ratio,
-                legout_to_legin_range_ratio=legout_to_legin_range_ratio,
-                legin_body_min=legin_body_min,
-                base_body_max=base_body_max,
-                legout_body_min=legout_body_min,
-                legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
-                candle_behind_legin=candle_behind_legin,
-            )
+            pipeline_future = detect_executor.submit(_run_scan_pipeline, df, pipeline_kwargs)
+            pipeline_futures[pipeline_future] = (tkr, itv, df, period_used)
+
+        detected = 0
+        for future in as_completed(pipeline_futures):
+            tkr, itv, df, period_used = pipeline_futures[future]
+            try:
+                result = future.result()
+            except Exception as exc:
+                skipped.append(f"{tkr} [{itv}] — detection error: {type(exc).__name__}")
+                continue
             combo_results[(tkr, itv)] = {"df": df, "result": result, "period_used": period_used}
+            detected += 1
+            progress.progress(
+                1.0 if not pipeline_futures else detected / len(pipeline_futures),
+                text=f"Detecting zones: {detected}/{len(pipeline_futures)} completed..."
+            )
+
+    progress.empty()
 
     progress.empty()
 
