@@ -849,10 +849,6 @@ def _resample_custom_timeframe(df: pd.DataFrame, ticker: str, interval: str) -> 
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
-    if tkr in FOREX_TICKERS:
-        from forex_data import fetch_forex_data
-        return fetch_forex_data(tkr, itv, per)
-
     if itv in CUSTOM_INTERVAL_MINUTES:
         # Yahoo and the shared Forex provider supply real 5-minute candles;
         # pandas aggregates them into the requested custom timeframe.
@@ -861,6 +857,10 @@ def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
         # 75m, 125m, 2h and 4h scans of the same ticker and period.
         base_df = fetch_data(tkr, "5m", per)
         return _resample_custom_timeframe(base_df, tkr, itv)
+
+    if tkr in FOREX_TICKERS:
+        from forex_data import fetch_forex_data
+        return fetch_forex_data(tkr, itv, per)
 
     import yfinance as yf
     yf_itv = YF_INTERVAL_MAP_APP.get(itv, itv)
