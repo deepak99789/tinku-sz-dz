@@ -760,20 +760,10 @@ def fetch_data(tkr: str, itv: str, per: str) -> pd.DataFrame:
     if itv in CUSTOM_INTERVAL_MINUTES:
         # Yahoo and the shared Forex provider supply real 5-minute candles;
         # pandas aggregates them into the requested custom timeframe.
-        if tkr in FOREX_TICKERS:
-            base_df = fetch_forex_data(tkr, "5m", per)
-        else:
-            try:
-                base_df = yf.download(
-                    tkr, interval="5m", period=per, progress=False,
-                    auto_adjust=False, threads=False,
-                )
-            except Exception:
-                return pd.DataFrame()
-            if not base_df.empty and isinstance(base_df.columns, pd.MultiIndex):
-                base_df.columns = base_df.columns.get_level_values(0)
-            if not base_df.empty:
-                base_df = base_df[["Open", "High", "Low", "Close"]].dropna()
+        # Reuse the cached 5-minute source data across custom intervals.
+        # This avoids downloading identical 5-minute history separately for
+        # 75m, 125m, 2h and 4h scans of the same ticker and period.
+        base_df = fetch_data(tkr, "5m", per)
         return _resample_custom_timeframe(base_df, tkr, itv)
 
     if tkr in FOREX_TICKERS:
