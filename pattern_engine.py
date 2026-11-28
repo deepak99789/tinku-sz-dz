@@ -92,6 +92,7 @@ def detect_patterns(
     legout_to_legin_range_ratio: float = 1.0,
     legout_must_respect_base_distal: bool = False,
     legout_open_beyond_proximal_base_close: bool = False,
+    candle_behind_legin: bool = False,
     legin_must_strictly_exceed_base: bool = False,
     legout_open_within_legin_range: bool = False,
     telegram_first_legout_only_rules: bool = False,
@@ -218,6 +219,20 @@ def detect_patterns(
                 legin_range = h[legin_idx] - l[legin_idx]
                 if legin_range <= 0:
                     continue
+                # Optional dashboard filter: the candle immediately before Leg-in
+                # may overlap no more than 50% of the Leg-in High-Low range.
+                # Exactly 50% is accepted. Default OFF preserves all other callers.
+                if candle_behind_legin:
+                    previous_idx = legin_idx - 1
+                    if previous_idx < 0:
+                        continue
+                    overlap = max(
+                        0.0,
+                        min(h[previous_idx], h[legin_idx])
+                        - max(l[previous_idx], l[legin_idx]),
+                    )
+                    if overlap > legin_range * 0.5:
+                        continue
                 legin_pct = body_pct(legin_idx)
                 if legin_pct < legin_body_min:
                     continue
@@ -659,6 +674,7 @@ def run_full_pipeline(
     legout_body_min: float = 65.0,
     legout_must_respect_base_distal: bool = False,
     legout_open_beyond_proximal_base_close: bool = False,
+    candle_behind_legin: bool = False,
     legin_must_strictly_exceed_base: bool = False,
     legout_open_within_legin_range: bool = False,
     telegram_first_legout_only_rules: bool = False,
@@ -674,6 +690,7 @@ def run_full_pipeline(
         legout_body_min=legout_body_min,
         legout_must_respect_base_distal=legout_must_respect_base_distal,
         legout_open_beyond_proximal_base_close=legout_open_beyond_proximal_base_close,
+        candle_behind_legin=candle_behind_legin,
         legin_must_strictly_exceed_base=legin_must_strictly_exceed_base,
         legout_open_within_legin_range=legout_open_within_legin_range,
         telegram_first_legout_only_rules=telegram_first_legout_only_rules,
