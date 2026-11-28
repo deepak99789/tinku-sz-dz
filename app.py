@@ -665,6 +665,95 @@ def show_zone_popup(df: pd.DataFrame, z, ticker: str, interval: str, rr_target: 
     fig.update_yaxes(showgrid=True, gridcolor="rgba(128,128,128,0.18)")
     st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
 
+    # --------------------------------------------------------------
+    # FILTER DETAILS: calculate the exact candles used by this zone.
+    # Zone.start_bar points to the first base candle; derive the
+    # Leg-in and Leg-out indices from trigger_bar/base_count/legout_count.
+    # --------------------------------------------------------------
+    trigger_idx = int(z.trigger_bar)
+    legout_start_idx = trigger_idx - int(z.legout_count) + 1
+    base_end_idx = legout_start_idx - 1
+    base_start_idx = base_end_idx - int(z.base_count) + 1
+    legin_idx = base_start_idx - 1
+    behind_idx = legin_idx - 1
+
+    def candle_range(idx):
+        return float(df["High"].iloc[idx] - df["Low"].iloc[idx])
+
+    def candle_body_pct(idx):
+        rng = candle_range(idx)
+        if rng <= 0:
+            return 0.0
+        return abs(float(df["Close"].iloc[idx] - df["Open"].iloc[idx])) / rng * 100.0
+
+    base_indices = list(range(base_start_idx, base_end_idx + 1))
+    legout_indices = list(range(legout_start_idx, trigger_idx + 1))
+    legin_size = candle_range(legin_idx)
+    base_sizes = [candle_range(k) for k in base_indices]
+    legout_sizes = [candle_range(k) for k in legout_indices]
+    base_high = max(float(df["High"].iloc[k]) for k in base_indices)
+    base_low = min(float(df["Low"].iloc[k]) for k in base_indices)
+    base_envelope_size = base_high - base_low
+    legout_open = float(df["Open"].iloc[legout_start_idx])
+    legin_high = float(df["High"].iloc[legin_idx])
+    legin_low = float(df["Low"].iloc[legin_idx])
+    demand_zone = not bool(z.is_supply)
+
+    behind_overlap_pct = None
+    if behind_idx >= 0 and legin_size > 0:
+        overlap = max(
+            0.0,
+            min(float(df["High"].iloc[behind_idx]), legin_high)
+            - max(float(df["Low"].iloc[behind_idx]), legin_low),
+        )
+        behind_overlap_pct = overlap / legin_size * 100.0
+
+    open_beyond_base = (legout_open > base_high) if demand_zone else (legout_open < base_low)
+    if demand_zone:
+        proximal_base_idx = max(base_indices, key=lambda k: max(float(df["Open"].iloc[k]), float(df["Close"].iloc[k])))
+        proximal_base_close_pass = legout_open > float(df["Close"].iloc[proximal_base_idx])
+    else:
+        proximal_base_idx = min(base_indices, key=lambda k: min(float(df["Open"].iloc[k]), float(df["Close"].iloc[k])))
+        proximal_base_close_pass = legout_open < float(df["Close"].iloc[proximal_base_idx])
+
+    behind_filter_on = bool(st.session_state.get("scan_candle_behind_legin", False))
+    base_range_filter_on = bool(st.session_state.get("scan_legin_base_range_filter", True))
+    validation_on = bool(st.session_state.get("scan_validation_checklist", False))
+    open_filter_on = bool(st.session_state.get("scan_legout_open_filter", False))
+    legin_body_min_saved = float(st.session_state.get("scan_legin_body_min", 60.0))
+    base_body_max_saved = float(st.session_state.get("scan_base_body_max", 55.0))
+    legout_body_min_saved = float(st.session_state.get("scan_legout_body_min", 65.0))
+    legin_base_ratio_saved = float(st.session_state.get("scan_legin_base_ratio", 1.0))
+    legout_legin_ratio_saved = float(st.session_state.get("scan_legout_legin_ratio", 1.0))
+
+    detail_rows = [
+        {"Filter / Measurement": "Candle Behind Leg-in overlap", "Actual": f"{behind_overlap_pct:.1f}%" if behind_overlap_pct is not None else "Previous candle unavailable", "Rule / Status": "PASS" if behind_filter_on and behind_overlap_pct is not None and behind_overlap_pct <= 50 else ("FAIL" if behind_filter_on else "Not Applied")},
+        {"Filter / Measurement": "Leg-in size (High − Low)", "Actual": f"{legin_size:.8g}", "Rule / Status": f"Body {candle_body_pct(legin_idx):.1f}% (minimum {legin_body_min_saved:g}%)"},
+        {"Filter / Measurement": "Base candle size(s)", "Actual": ", ".join(f"{v:.8g}" for v in base_sizes), "Rule / Status": f"Combined base envelope: {base_envelope_size:.8g}"},
+        {"Filter / Measurement": "Leg-in vs each Base range", "Actual": f"Leg-in {legin_size:.8g}; Base(s) {', '.join(f'{v:.8g}' for v in base_sizes)}", "Rule / Status": ("PASS" if all(legin_size >= v * legin_base_ratio_saved for v in base_sizes) else "FAIL") if base_range_filter_on else "Not Applied"},
+        {"Filter / Measurement": "Leg-out candle size(s)", "Actual": ", ".join(f"{v:.8g}" for v in legout_sizes), "Rule / Status": f"Combined leg-out range: {sum(legout_sizes):.8g}"},
+        {"Filter / Measurement": "Leg-out vs Leg-in range", "Actual": f"{sum(legout_sizes):.8g} / {legin_size:.8g} = {sum(legout_sizes) / legin_size:.2f}x" if legin_size else "-", "Rule / Status": f"PASS (must be > {legout_legin_ratio_saved:g}x)"},
+        {"Filter / Measurement": "First Leg-out Open vs Base", "Actual": f"Open {legout_open:.8g}; Base High {base_high:.8g}; Base Low {base_low:.8g}", "Rule / Status": ("Above Base High" if open_beyond_base else "Not above Base High") if demand_zone else ("Below Base Low" if open_beyond_base else "Not below Base Low")},
+        {"Filter / Measurement": "Open beyond proximal Base Close", "Actual": f"Reference Close {float(df['Close'].iloc[proximal_base_idx]):.8g}; Leg-out Open {legout_open:.8g}", "Rule / Status": ("PASS" if proximal_base_close_pass else "FAIL") if open_filter_on else "Not Applied"},
+        {"Filter / Measurement": "Leg-in body %", "Actual": f"{candle_body_pct(legin_idx):.1f}%", "Rule / Status": f"PASS (minimum {legin_body_min_saved:g}%)"},
+        {"Filter / Measurement": "Base body % (each candle)", "Actual": ", ".join(f"{candle_body_pct(k):.1f}%" for k in base_indices), "Rule / Status": f"PASS (each must be < {base_body_max_saved:g}%)"},
+        {"Filter / Measurement": "Leg-out body % (each candle)", "Actual": ", ".join(f"{candle_body_pct(k):.1f}%" for k in legout_indices), "Rule / Status": f"PASS (each must be ≥ {legout_body_min_saved:g}%)"},
+    ]
+    if validation_on:
+        open_inside_legin = legin_low <= legout_open <= legin_high
+        base_body_high = max(max(float(df["Open"].iloc[k]), float(df["Close"].iloc[k])) for k in base_indices)
+        base_body_low = min(min(float(df["Open"].iloc[k]), float(df["Close"].iloc[k])) for k in base_indices)
+        clean_gap = legout_open > base_body_high if demand_zone else legout_open < base_body_low
+        detail_rows.extend([
+            {"Filter / Measurement": "Validation: Leg-out Open inside Leg-in range", "Actual": f"Leg-in Low {legin_low:.8g}; Open {legout_open:.8g}; High {legin_high:.8g}", "Rule / Status": "PASS" if open_inside_legin else "FAIL"},
+            {"Filter / Measurement": "Validation: Open clear of Base body", "Actual": f"Base body {base_body_low:.8g}–{base_body_high:.8g}", "Rule / Status": "PASS" if clean_gap else "FAIL"},
+        ])
+    else:
+        detail_rows.append({"Filter / Measurement": "Validation Checklist", "Actual": "OFF", "Rule / Status": "Not Applied"})
+
+    with st.expander("🔍 View Filter Details — is zone mein kaun se filters lage?", expanded=False):
+        st.dataframe(pd.DataFrame(detail_rows), use_container_width=True, hide_index=True)
+
     st.caption(
         f"Chart window: 50 candles before the pattern and up to 50 candles after it. "
         f"Leg-in: {df.index[legin_idx]} · "
@@ -886,6 +975,15 @@ if trigger_scan:
     st.session_state["last_intervals"] = final_intervals
     st.session_state["rr_target"] = rr_target
     st.session_state["validation_checklist_on"] = validation_checklist_on
+    st.session_state["scan_candle_behind_legin"] = candle_behind_legin
+    st.session_state["scan_legin_base_range_filter"] = legin_base_range_filter
+    st.session_state["scan_validation_checklist"] = validation_checklist_on
+    st.session_state["scan_legout_open_filter"] = legout_open_beyond_proximal_base_close
+    st.session_state["scan_legin_body_min"] = legin_body_min
+    st.session_state["scan_base_body_max"] = base_body_max
+    st.session_state["scan_legout_body_min"] = legout_body_min
+    st.session_state["scan_legin_base_ratio"] = legin_to_base_range_ratio
+    st.session_state["scan_legout_legin_ratio"] = legout_to_legin_range_ratio
     st.session_state["last_scan_time"] = dt.datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
     collected = []
@@ -1025,11 +1123,14 @@ if "combo_results" in st.session_state:
     if picked_date_for_summary is not None:
         summary_title = f"### 📋 Final Summary — {picked_date_for_summary} ka data"
     st.markdown(summary_title)
-    s1, s2, s3, s4 = st.columns(4)
+    resolved_total_all = total_sl_all + total_tp_all
+    overall_winrate = (total_tp_all / resolved_total_all * 100.0) if resolved_total_all else 0.0
+    s1, s2, s3, s4, s5 = st.columns(5)
     s1.metric("Total Zones Detected", total_zones_all)
     s2.metric("🟡 Fresh Zones", total_fresh_all)
     s3.metric("🔴 SL Hit", total_sl_all)
     s4.metric("🟢 Target Hit", total_tp_all)
+    s5.metric("🏆 Win Rate", f"{overall_winrate:.1f}%", help="Target Hit ÷ (Target Hit + SL Hit) × 100. Fresh/Active zones is not included.")
 
     dc = st.container()
     with dc:
