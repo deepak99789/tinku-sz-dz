@@ -674,6 +674,7 @@ def run_full_pipeline(
     legout_body_min: float = 65.0,
     legout_must_respect_base_distal: bool = False,
     legout_open_beyond_proximal_base_close: bool = False,
+    candle_behind_legin: bool = False,
     legin_must_strictly_exceed_base: bool = False,
     legout_open_within_legin_range: bool = False,
     telegram_first_legout_only_rules: bool = False,
